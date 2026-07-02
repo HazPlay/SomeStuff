@@ -8,12 +8,11 @@ $departmentMap = @{
     "<Old Department 2>"             = "<New Department 2>"
 }
 
-# Get all users with a matching department, excluding Former Staff accounts
+# Get all users with a matching department
 $affectedUsers = Get-MgUser -All -Property "Id,DisplayName,UserPrincipalName,Department" |
     Where-Object {
         $_.Department -ne $null -and
-        $departmentMap.ContainsKey($_.Department) -and
-        $_.DisplayName -notlike "*Former Staff*"
+        $departmentMap.ContainsKey($_.Department)
     }
 
 Write-Host "`n$($affectedUsers.Count) user(s) found.`n"
