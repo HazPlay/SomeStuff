@@ -1,0 +1,42 @@
+#Connect-MgGraph -Scopes "User.ReadWrite.All"
+
+$dryRun = $true  # Set to $false when ready to apply
+
+# Mapping: old department name → new department name
+$departmentMap = @{
+    "<Old Department 1>"             = "<New Department 1>"
+    "<Old Department 2>"             = "<New Department 2>"
+}
+
+# Get all users with a matching department, excluding Former Staff accounts
+$affectedUsers = Get-MgUser -All -Property "Id,DisplayName,UserPrincipalName,Department" |
+    Where-Object {
+        $_.Department -ne $null -and
+        $departmentMap.ContainsKey($_.Department) -and
+        $_.DisplayName -notlike "*Former Staff*"
+    }
+
+Write-Host "`n$($affectedUsers.Count) user(s) found.`n"
+
+$results = foreach ($user in $affectedUsers) {
+    $newDept = $departmentMap[$user.Department]
+
+    if ($dryRun) {
+        Write-Host "[DRY RUN] $($user.DisplayName) | $($user.Department) → $newDept"
+    } else {
+        Update-MgUser -UserId $user.Id -Department $newDept
+        Write-Host "[UPDATED] $($user.DisplayName) | $($user.Department) → $newDept"
+    }
+
+    [PSCustomObject]@{
+        DisplayName   = $user.DisplayName
+        UPN           = $user.UserPrincipalName
+        OldDepartment = $user.Department
+        NewDepartment = $newDept
+        Status        = if ($dryRun) { "Pending" } else { "Updated" }
+    }
+}
+
+$fileName = if ($dryRun) { ".\DeptChange_DryRun.csv" } else { ".\DeptChange_Applied.csv" }
+$results | Export-Csv -Path $fileName -NoTypeInformation
+Write-Host "`nReport saved to $fileName"
