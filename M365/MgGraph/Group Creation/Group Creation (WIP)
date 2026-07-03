@@ -1,0 +1,118 @@
+# Microsoft 365 Group Creation and User Management Script
+# Requires Microsoft.Graph PowerShell module
+
+# Install Microsoft Graph module if not already installed
+# Install-Module Microsoft.Graph -Scope CurrentUser -Force
+
+# Import required modules
+Import-Module Microsoft.Graph.Groups
+Import-Module Microsoft.Graph.Users
+
+# Connect to Microsoft Graph with required scopes
+Write-Host "Connecting to Microsoft Graph..." -ForegroundColor Green
+Connect-MgGraph -Scopes "Group.ReadWrite.All", "User.Read.All", "Directory.Read.All"
+
+# Configuration variables
+$GroupDisplayName = "Sample Project Team"
+$GroupDescription = "This is a sample Microsoft 365 group for project collaboration"
+$GroupMailNickname = "sample-project-team"  # Must be unique, no spaces
+$GroupVisibility = "Private"  # Options: "Private" or "Public"
+
+# Array of user email addresses to add to the group
+$UsersToAdd = @(
+    "user1@yourdomain.com",
+    "user2@yourdomain.com",
+    "user3@yourdomain.com"
+)
+
+try {
+    # Create the Microsoft 365 Group
+    Write-Host "Creating Microsoft 365 Group: $GroupDisplayName..." -ForegroundColor Yellow
+    
+    $GroupParams = @{
+        DisplayName = $GroupDisplayName
+        Description = $GroupDescription
+        MailNickname = $GroupMailNickname
+        MailEnabled = $true
+        SecurityEnabled = $false
+        GroupTypes = @("Unified")  # This makes it a Microsoft 365 group
+        Visibility = $GroupVisibility
+    }
+    
+    $NewGroup = New-MgGroup @GroupParams
+    Write-Host "✓ Group created successfully with ID: $($NewGroup.Id)" -ForegroundColor Green
+    
+    # Wait a moment for the group to be fully provisioned
+    Start-Sleep -Seconds 5
+    
+    # Add users to the group
+    Write-Host "`nAdding users to the group..." -ForegroundColor Yellow
+    
+    foreach ($UserEmail in $UsersToAdd) {
+        try {
+            # Get user by email
+            $User = Get-MgUser -Filter "mail eq '$UserEmail' or userPrincipalName eq '$UserEmail'"
+            
+            if ($User) {
+                # Add user as member to the group
+                $MemberParams = @{
+                    "@odata.id" = "https://graph.microsoft.com/v1.0/users/$($User.Id)"
+                }
+                
+                New-MgGroupMember -GroupId $NewGroup.Id -BodyParameter $MemberParams
+                Write-Host "✓ Added user: $UserEmail" -ForegroundColor Green
+            }
+            else {
+                Write-Host "✗ User not found: $UserEmail" -ForegroundColor Red
+            }
+        }
+        catch {
+            Write-Host "✗ Failed to add user $UserEmail : $($_.Exception.Message)" -ForegroundColor Red
+        }
+    }
+    
+    # Optional: Add owners to the group (usually the person running the script)
+    Write-Host "`nAdding current user as group owner..." -ForegroundColor Yellow
+    try {
+        $CurrentUser = Get-MgContext | Select-Object -ExpandProperty Account
+        $CurrentUserObj = Get-MgUser -Filter "userPrincipalName eq '$CurrentUser'"
+        
+        if ($CurrentUserObj) {
+            $OwnerParams = @{
+                "@odata.id" = "https://graph.microsoft.com/v1.0/users/$($CurrentUserObj.Id)"
+            }
+            
+            New-MgGroupOwner -GroupId $NewGroup.Id -BodyParameter $OwnerParams
+            Write-Host "✓ Added current user as owner" -ForegroundColor Green
+        }
+    }
+    catch {
+        Write-Host "Note: Could not add current user as owner: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    
+    # Display group information
+    Write-Host "`n" + "="*50 -ForegroundColor Cyan
+    Write-Host "GROUP CREATED SUCCESSFULLY" -ForegroundColor Cyan
+    Write-Host "="*50 -ForegroundColor Cyan
+    Write-Host "Group Name: $($NewGroup.DisplayName)"
+    Write-Host "Group ID: $($NewGroup.Id)"
+    Write-Host "Email: $($NewGroup.Mail)"
+    Write-Host "SharePoint Site: https://yourtenant.sharepoint.com/sites/$($NewGroup.MailNickname)"
+    Write-Host "Teams URL: https://teams.microsoft.com/l/team/$($NewGroup.Id)"
+    
+    # Get current members for verification
+    Write-Host "`nGroup Members:" -ForegroundColor Cyan
+    $Members = Get-MgGroupMember -GroupId $NewGroup.Id
+    foreach ($Member in $Members) {
+        $MemberDetails = Get-MgUser -UserId $Member.Id
+        Write-Host "- $($MemberDetails.DisplayName) ($($MemberDetails.UserPrincipalName))"
+    }
+}
+catch {
+    Write-Host "Error creating group: $($_.Exception.Message)" -ForegroundColor Red
+}
+finally {
+    # Disconnect from Microsoft Graph
+    Write-Host "`nDisconnecting from Microsoft Graph..." -ForegroundColor Green
+    Disconnect-MgGraph
+}
