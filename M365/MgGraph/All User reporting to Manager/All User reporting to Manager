@@ -1,0 +1,20 @@
+# This script retrieves all direct and indirect reports for a specified user in Microsoft Graph.
+function Get-AllReports {
+        param($UserId)
+        
+        $reports = Get-MgUserDirectReport -UserId $UserId
+        foreach ($report in $reports) {
+            $user = Get-MgUser -UserId $report.Id -Property DisplayName, UserPrincipalName, JobTitle
+            [PSCustomObject]@{
+                Name  = $user.DisplayName
+                UPN   = $user.UserPrincipalName
+                Title = $user.JobTitle
+            }
+            # Recurse down
+            Get-AllReports -UserId $report.Id
+        }
+    }
+    
+    $manager = Get-MgUser -UserId $UserId -Property DisplayName
+    Write-Host "People Reporting to $($manager.DisplayName)" -ForegroundColor Cyan
+    Get-AllReports -UserId "manage@domain.com"
