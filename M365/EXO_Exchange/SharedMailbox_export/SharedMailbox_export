@@ -1,1 +1,438 @@
-empty
+<#
+.SYNOPSIS
+    One script: pulls Full Access + Send As delegates for every shared
+    mailbox in Exchange Online and generates a single interactive HTML report.
+
+.DESCRIPTION
+    Connects to Exchange Online (if not already connected), enumerates all
+    SharedMailbox recipients, and for each one resolves:
+      - Full Access delegates (via Get-MailboxPermission)
+      - Send As delegates (via Get-RecipientPermission)
+      - Delegate display names (via a cached Get-Recipient lookup, since
+        Get-MailboxPermission/Get-RecipientPermission only return an
+        identity string, not a friendly name)
+      - Mailbox metadata: GAL visibility, item count/size, last logon
+
+    Looks up each mailbox by its ExchangeGuid (not its Identity/alias),
+    since a short alias-style identity can be ambiguous when another
+    recipient in the tenant shares the same name - that's what causes
+    "'X' doesn't represent a unique recipient" errors and silently drops
+    that mailbox's permissions. If a lookup still fails, it's caught and
+    the mailbox is flagged in the report rather than silently shown as
+    having no delegates.
+
+    Writes one self-contained HTML report (vanilla JS, no external
+    dependencies, works offline): click a mailbox row to expand its
+    delegates. Filter bar covers GAL visibility, never-logged-on mailboxes,
+    and mailboxes with no delegates. Search matches mailbox name/email/alias
+    or a delegate's display name/UPN.
+
+.PARAMETER OutputPath
+    Folder to save the HTML report to. Defaults to the current directory.
+
+.PARAMETER CsvPath
+    Optional. If given, also exports a flat CSV backup of the same data
+    (one row per mailbox/delegate) - handy if you want the raw data for
+    something other than the HTML report.
+
+.PARAMETER OpenAfterExport
+    Switch. If set, opens the HTML file once it's generated.
+
+.EXAMPLE
+    .\Get-SharedMailboxReport.ps1 -OutputPath C:\Reports -OpenAfterExport
+
+.EXAMPLE
+    .\Get-SharedMailboxReport.ps1 -CsvPath C:\Reports\SharedMailboxPermissions.csv
+
+.NOTES
+    Requires the ExchangeOnlineManagement module.
+    Install-Module ExchangeOnlineManagement -Scope CurrentUser
+#>
+
+[CmdletBinding()]
+param(
+    [string]$OutputPath = (Get-Location).Path,
+    [string]$CsvPath,
+    [switch]$OpenAfterExport
+)
+
+# ---------------------------------------------------------------------------
+# 1. Connect to Exchange Online (skip if a session already exists)
+# ---------------------------------------------------------------------------
+if (-not (Get-Module -Name ExchangeOnlineManagement)) {
+    Import-Module ExchangeOnlineManagement -ErrorAction Stop
+}
+if (-not (Get-ConnectionInformation -ErrorAction SilentlyContinue)) {
+    Write-Host "Connecting to Exchange Online..." -ForegroundColor Cyan
+    Connect-ExchangeOnline -ShowBanner:$false
+}
+
+# Cache delegate lookups - the same admin/group is often a delegate on many
+# mailboxes, so this avoids repeating the same Get-Recipient call.
+$recipientCache = @{}
+function Resolve-Delegate {
+    param([string]$Id)
+    if ($recipientCache.ContainsKey($Id)) { return $recipientCache[$Id] }
+    $info = try {
+        $r = Get-Recipient -Identity $Id -ErrorAction Stop
+        [PSCustomObject]@{ DisplayName = $r.DisplayName; UPN = [string]$r.PrimarySmtpAddress }
+    } catch {
+        [PSCustomObject]@{ DisplayName = $Id; UPN = $Id }
+    }
+    $recipientCache[$Id] = $info
+    return $info
+}
+
+# ---------------------------------------------------------------------------
+# 2. Pull all shared mailboxes and their delegates
+# ---------------------------------------------------------------------------
+Write-Host "Retrieving shared mailboxes..." -ForegroundColor Cyan
+$sharedMailboxes = Get-Mailbox -RecipientTypeDetails SharedMailbox -ResultSize Unlimited | Sort-Object DisplayName
+
+if (-not $sharedMailboxes) {
+    Write-Warning "No shared mailboxes found."
+    return
+}
+
+$mailboxData = New-Object System.Collections.Generic.List[object]
+$csvRows     = New-Object System.Collections.Generic.List[object]   # only populated if -CsvPath is given
+
+$total = $sharedMailboxes.Count
+$i = 0
+
+foreach ($mbx in $sharedMailboxes) {
+    $i++
+    Write-Progress -Activity "Processing shared mailboxes" -Status "$($mbx.DisplayName) ($i of $total)" -PercentComplete (($i / $total) * 100)
+
+    $mbxGuid = if ($mbx.ExchangeGuid -and $mbx.ExchangeGuid -ne [Guid]::Empty) {
+        $mbx.ExchangeGuid.ToString()
+    } else {
+        $mbx.Identity
+    }
+
+    $stats = Get-MailboxStatistics -Identity $mbxGuid -ErrorAction SilentlyContinue
+    $neverLoggedOn = -not ($stats -and $stats.LastLogonTime)
+    $lastLogon = if ($neverLoggedOn) { "Never" } else { $stats.LastLogonTime.ToString("yyyy-MM-dd HH:mm") }
+
+    $permissions = New-Object System.Collections.Generic.List[object]
+    $lookupFailed = $false
+
+    try {
+        Get-MailboxPermission -Identity $mbxGuid -ErrorAction Stop |
+            Where-Object {
+                $_.User -notlike "NT AUTHORITY\SELF" -and
+                $_.IsInherited -eq $false -and
+                $_.AccessRights -contains "FullAccess"
+            } |
+            ForEach-Object {
+                $d = Resolve-Delegate $_.User
+                $permissions.Add([PSCustomObject]@{ DisplayName = $d.DisplayName; UPN = $d.UPN; Type = "Full Access" })
+            }
+    } catch {
+        $lookupFailed = $true
+        Write-Warning "Full Access lookup failed for $($mbx.DisplayName): $($_.Exception.Message)"
+    }
+
+    try {
+        Get-RecipientPermission -Identity $mbxGuid -ErrorAction Stop |
+            Where-Object { $_.Trustee -notlike "NT AUTHORITY\SELF" } |
+            ForEach-Object {
+                $d = Resolve-Delegate $_.Trustee
+                $permissions.Add([PSCustomObject]@{ DisplayName = $d.DisplayName; UPN = $d.UPN; Type = "Send As" })
+            }
+    } catch {
+        $lookupFailed = $true
+        Write-Warning "Send As lookup failed for $($mbx.DisplayName): $($_.Exception.Message)"
+    }
+
+    $mailboxData.Add([PSCustomObject]@{
+        DisplayName   = $mbx.DisplayName
+        PrimarySmtp   = [string]$mbx.PrimarySmtpAddress
+        Alias         = $mbx.Alias
+        HiddenFromGAL = [bool]$mbx.HiddenFromAddressListsEnabled
+        ItemCount     = if ($stats) { $stats.ItemCount } else { 0 }
+        TotalItemSize = if ($stats) { [string]$stats.TotalItemSize } else { "N/A" }
+        LastLogonTime = $lastLogon
+        NeverLoggedOn = $neverLoggedOn
+        LookupFailed  = $lookupFailed
+        Permissions   = $permissions
+    })
+
+    if ($CsvPath) {
+        $rowsForCsv = if ($permissions.Count -gt 0) { $permissions } else { , ([PSCustomObject]@{ DisplayName = ""; UPN = ""; Type = "" }) }
+        foreach ($p in $rowsForCsv) {
+            $csvRows.Add([PSCustomObject]@{
+                MailboxDisplayName  = $mbx.DisplayName
+                MailboxPrimarySmtp  = [string]$mbx.PrimarySmtpAddress
+                MailboxAlias        = $mbx.Alias
+                HiddenFromGAL       = [bool]$mbx.HiddenFromAddressListsEnabled
+                ItemCount           = if ($stats) { $stats.ItemCount } else { 0 }
+                TotalItemSize       = if ($stats) { [string]$stats.TotalItemSize } else { "N/A" }
+                LastLogonTime       = $lastLogon
+                NeverLoggedOn       = $neverLoggedOn
+                LookupFailed        = $lookupFailed
+                DelegateDisplayName = $p.DisplayName
+                DelegateUPN         = $p.UPN
+                PermissionType      = $p.Type
+            })
+        }
+    }
+}
+
+Write-Progress -Activity "Processing shared mailboxes" -Completed
+
+$failedLookups = ($mailboxData | Where-Object { $_.LookupFailed }).Count
+if ($failedLookups -gt 0) {
+    Write-Warning "$failedLookups mailbox(es) had a permission lookup failure - flagged in the report, see warnings above for which cmdlet failed on each."
+}
+
+if ($CsvPath) {
+    $csvRows | Export-Csv -Path $CsvPath -NoTypeInformation -Encoding UTF8
+    Write-Host "CSV backup saved to: $CsvPath" -ForegroundColor Green
+}
+
+# ---------------------------------------------------------------------------
+# 3. Serialize to JSON for embedding in the page
+# ---------------------------------------------------------------------------
+$jsonData = $mailboxData | ConvertTo-Json -Depth 6 -Compress
+if ($mailboxData.Count -eq 1) { $jsonData = "[$jsonData]" }
+$jsonData = $jsonData -replace '(?i)</script', '<\/script'
+
+# ---------------------------------------------------------------------------
+# 4. Build the interactive HTML report
+# ---------------------------------------------------------------------------
+$generatedOn  = Get-Date -Format "yyyy-MM-dd HH:mm"
+$reportFile   = Join-Path $OutputPath "SharedMailboxReport_$(Get-Date -Format 'yyyyMMdd_HHmmss').html"
+$mailboxCount = $mailboxData.Count
+
+$html = @"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shared Mailbox Report</title>
+<style>
+    body { font-family: Segoe UI, Arial, sans-serif; margin: 30px; color: #222; background: #f7f8fa; }
+    h1 { color: #1a1a1a; margin-bottom: 0; }
+    .subtitle { color: #666; margin-top: 4px; margin-bottom: 24px; font-size: 14px; }
+
+    .toolbar {
+        display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+        background: #fff; padding: 14px 18px; border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px;
+    }
+    .toolbar .group { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #444; }
+    .toolbar input[type="text"] {
+        padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 260px;
+    }
+    .toolbar select {
+        padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+    }
+    .toolbar button {
+        padding: 7px 16px; border: none; border-radius: 4px; background: #0078d4;
+        color: #fff; cursor: pointer; font-size: 13px;
+    }
+    .toolbar button:hover { background: #005a9e; }
+    #resultCount { font-size: 13px; color: #666; margin-bottom: 10px; }
+
+    table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    th { background-color: #0078d4; color: #fff; text-align: left; padding: 10px 12px; font-size: 13px; }
+    td { padding: 9px 12px; border-bottom: 1px solid #e5e5e5; font-size: 13px; vertical-align: top; }
+
+    tr.mailbox-row { cursor: pointer; }
+    tr.mailbox-row:nth-of-type(4n+1) { background-color: #fafafa; }
+    tr.mailbox-row:hover { background-color: #eef6fc; }
+
+    .chevron-cell { width: 24px; text-align: center; color: #0078d4; }
+    .chevron { display: inline-block; transition: transform 0.15s ease; }
+    tr.mailbox-row.expanded .chevron { transform: rotate(90deg); }
+
+    tr.detail-row.hidden { display: none; }
+    tr.detail-row td { background: #f5f8fb; padding: 14px 20px 18px 42px; }
+    table.detail-table { box-shadow: none; margin-bottom: 0; }
+    table.detail-table th { background: #e2ecf5; color: #333; }
+    .no-perms { color: #888; font-style: italic; font-size: 13px; }
+    .lookup-warning {
+        background: #fff4e5; color: #8a5a00; border: 1px solid #f0c36d;
+        padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px;
+    }
+
+    .badge-full { color: #b00020; font-weight: 600; }
+    .badge-send { color: #0078d4; font-weight: 600; }
+    .badge-hidden { color: #b00020; font-weight: 600; }
+    .badge-visible { color: #2e7d32; font-weight: 600; }
+    .badge-warning { color: #b36b00; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Shared Mailbox Report</h1>
+<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; Your Company &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
+
+<div class="toolbar">
+    <div class="group">
+        <input type="text" id="searchInput" placeholder="Search mailbox or delegate...">
+    </div>
+    <div class="group">
+        <label for="hiddenFilter">GAL:</label>
+        <select id="hiddenFilter">
+            <option value="all">All</option>
+            <option value="hidden">Hidden only</option>
+            <option value="visible">Visible only</option>
+        </select>
+    </div>
+    <div class="group">
+        <label><input type="checkbox" id="neverLoggedOnFilter"> Never logged on</label>
+    </div>
+    <div class="group">
+        <label><input type="checkbox" id="noPermsFilter"> No delegates assigned</label>
+    </div>
+    <div class="group">
+        <button id="resetBtn" type="button">Reset filters</button>
+    </div>
+</div>
+
+<div id="resultCount"></div>
+
+<table id="mailboxTable">
+    <thead>
+        <tr>
+            <th></th>
+            <th>Display Name</th>
+            <th>Primary SMTP</th>
+            <th>Items</th>
+            <th>Size</th>
+            <th>Last Logon</th>
+            <th>GAL</th>
+            <th>Delegates</th>
+        </tr>
+    </thead>
+    <tbody id="mailboxTableBody"></tbody>
+</table>
+
+<script>
+    const mailboxData = $jsonData;
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function permBadge(type) {
+        const map = { 'Full Access': 'badge-full', 'Send As': 'badge-send' };
+        const cls = map[type] || '';
+        return '<span class="' + cls + '">' + escapeHtml(type) + '</span>';
+    }
+
+    function buildDetailHtml(mbx) {
+        let html = '';
+        if (mbx.LookupFailed) {
+            html += '<div class="lookup-warning">&#9888; Permission lookup failed for this mailbox when the report ran - the list below may be incomplete. Re-run the script or check this mailbox manually in Exchange Online.</div>';
+        }
+        if (!mbx.Permissions || mbx.Permissions.length === 0) {
+            html += '<div class="no-perms">No delegates assigned to this mailbox.</div>';
+            return html;
+        }
+        let rows = mbx.Permissions.map(function (p) {
+            return '<tr><td>' + escapeHtml(p.DisplayName) + '</td><td>' + escapeHtml(p.UPN) + '</td><td>' + permBadge(p.Type) + '</td></tr>';
+        }).join('');
+        html += '<table class="detail-table"><thead><tr><th>Display Name</th><th>UPN</th><th>Permission</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        return html;
+    }
+
+    function render(data) {
+        const tbody = document.getElementById('mailboxTableBody');
+        tbody.innerHTML = '';
+
+        data.forEach(function (mbx) {
+            const mainRow = document.createElement('tr');
+            mainRow.className = 'mailbox-row';
+            mainRow.innerHTML =
+                '<td class="chevron-cell"><span class="chevron">&#9656;</span></td>' +
+                '<td>' + escapeHtml(mbx.DisplayName) + '</td>' +
+                '<td>' + escapeHtml(mbx.PrimarySmtp) + '</td>' +
+                '<td>' + escapeHtml(mbx.ItemCount) + '</td>' +
+                '<td>' + escapeHtml(mbx.TotalItemSize) + '</td>' +
+                '<td>' + escapeHtml(mbx.LastLogonTime) + '</td>' +
+                '<td>' + (mbx.HiddenFromGAL ? '<span class="badge-hidden">Hidden</span>' : '<span class="badge-visible">Visible</span>') + '</td>' +
+                '<td>' + mbx.Permissions.length + (mbx.LookupFailed ? ' <span class="badge-warning" title="Permission lookup failed">&#9888;</span>' : '') + '</td>';
+
+            const detailRow = document.createElement('tr');
+            detailRow.className = 'detail-row hidden';
+            const detailCell = document.createElement('td');
+            detailCell.colSpan = 8;
+            detailCell.innerHTML = buildDetailHtml(mbx);
+            detailRow.appendChild(detailCell);
+
+            mainRow.addEventListener('click', function () {
+                detailRow.classList.toggle('hidden');
+                mainRow.classList.toggle('expanded');
+            });
+
+            tbody.appendChild(mainRow);
+            tbody.appendChild(detailRow);
+        });
+
+        document.getElementById('resultCount').textContent =
+            data.length + ' of ' + mailboxData.length + ' mailboxes shown';
+    }
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value.trim().toLowerCase();
+        const hiddenFilter = document.getElementById('hiddenFilter').value;
+        const neverLoggedOn = document.getElementById('neverLoggedOnFilter').checked;
+        const noPerms = document.getElementById('noPermsFilter').checked;
+
+        const filtered = mailboxData.filter(function (mbx) {
+            if (search) {
+                const inMailbox =
+                    mbx.DisplayName.toLowerCase().includes(search) ||
+                    mbx.PrimarySmtp.toLowerCase().includes(search) ||
+                    (mbx.Alias || '').toLowerCase().includes(search);
+                const inDelegate = mbx.Permissions.some(function (p) {
+                    return (p.DisplayName || '').toLowerCase().includes(search) ||
+                           (p.UPN || '').toLowerCase().includes(search);
+                });
+                if (!inMailbox && !inDelegate) return false;
+            }
+            if (hiddenFilter === 'hidden' && !mbx.HiddenFromGAL) return false;
+            if (hiddenFilter === 'visible' && mbx.HiddenFromGAL) return false;
+            if (neverLoggedOn && !mbx.NeverLoggedOn) return false;
+            if (noPerms && mbx.Permissions.length > 0) return false;
+            return true;
+        });
+
+        render(filtered);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('hiddenFilter').addEventListener('change', applyFilters);
+    document.getElementById('neverLoggedOnFilter').addEventListener('change', applyFilters);
+    document.getElementById('noPermsFilter').addEventListener('change', applyFilters);
+
+    document.getElementById('resetBtn').addEventListener('click', function () {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('hiddenFilter').value = 'all';
+        document.getElementById('neverLoggedOnFilter').checked = false;
+        document.getElementById('noPermsFilter').checked = false;
+        applyFilters();
+    });
+
+    render(mailboxData);
+</script>
+
+</body>
+</html>
+"@
+
+$html | Out-File -FilePath $reportFile -Encoding UTF8
+Write-Host "Report saved to: $reportFile" -ForegroundColor Green
+
+if ($OpenAfterExport) {
+    Invoke-Item $reportFile
+}
