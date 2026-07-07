@@ -134,5 +134,3 @@ Press `Ctrl+C` in the terminal. The token and all cached data are cleared from m
 ---
  
 Built by [HazPlay](https://github.com/HazPlay) · MIT Licence
-
-Built by [HazPlay](https://github.com/HazPlay) · MIT Licence
