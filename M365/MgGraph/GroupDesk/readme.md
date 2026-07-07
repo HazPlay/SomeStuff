@@ -132,9 +132,3 @@ GroupDesk uses **delegated permissions** — it acts as the signed-in user, not 
 Press `Ctrl+C` in the terminal. The token and all cached data are cleared from memory.
 
 ---
-
-## Licence
-
-MIT — see [LICENCE](LICENCE) for full text.
-
-Copyright (c) 2026 HazPlay
