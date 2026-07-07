@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GroupDesk</title>
+<style>
+:root{
+  --navy:#1a2744;--navy2:#243050;--blue:#2563eb;--purple:#7c3aed;
+  --green:#16a34a;--red:#dc2626;--amber:#d97706;
+  --bg:#f1f5f9;--surface:#fff;--border:#e2e8f0;--muted:#64748b;
+  --text:#1e293b;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);font-size:14px;}
+
+/* ── Header ── */
+.header{background:var(--navy);color:#fff;padding:14px 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.header-title{font-size:16px;font-weight:700;letter-spacing:.3px;}
+.header-meta{font-size:11px;opacity:.6;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.user-chip{background:rgba(255,255,255,.12);border-radius:20px;
+  padding:4px 12px;font-size:12px;}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;
+  border-radius:6px;border:none;font-size:12px;font-weight:600;
+  cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-danger {background:var(--red);color:#fff;}
+.btn-ghost {background:rgba(255,255,255,.15);color:#fff;}
+.btn-sm{padding:3px 10px;font-size:11px;}
+.btn-outline{background:#fff;border:1px solid var(--border);color:var(--text);}
+
+/* ── Tabs ── */
+.tabs{background:var(--navy2);display:flex;gap:2px;padding:0 24px;}
+.tab{padding:10px 18px;color:rgba(255,255,255,.6);font-size:13px;
+  font-weight:600;cursor:pointer;border-bottom:2px solid transparent;
+  transition:color .15s;}
+.tab.active{color:#fff;border-bottom-color:#fff;}
+
+/* ── Auth screen ── */
+.auth-screen{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;height:calc(100vh - 100px);gap:20px;text-align:center;}
+.auth-screen h2{font-size:22px;color:var(--navy);}
+.auth-screen p{color:var(--muted);max-width:380px;}
+.ms-btn{display:inline-flex;align-items:center;gap:10px;padding:12px 24px;
+  background:#fff;border:1px solid var(--border);border-radius:8px;
+  font-size:15px;font-weight:600;color:var(--text);cursor:pointer;
+  box-shadow:var(--shadow);transition:box-shadow .15s;}
+.ms-btn:hover{box-shadow:0 4px 12px rgba(0,0,0,.12);}
+.ms-logo{width:20px;height:20px;}
+
+/* ── Loading screen ── */
+.loading-screen{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;height:calc(100vh - 100px);gap:16px;text-align:center;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);
+  border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar-wrap{width:360px;background:var(--border);border-radius:4px;height:6px;margin-top:8px;}
+.progress-bar{height:6px;border-radius:4px;background:var(--blue);
+  transition:width .3s ease;width:0%;}
+.progress-text{font-size:12px;color:var(--muted);}
+
+/* ── Main content ── */
+.main{padding:20px 24px;}
+
+/* ── Cards ── */
+.cards{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.card{background:var(--surface);border-radius:var(--radius);padding:16px 20px;
+  flex:1;min-width:120px;box-shadow:var(--shadow);}
+.card-num{font-size:26px;font-weight:800;line-height:1;}
+.card-label{font-size:11px;color:var(--muted);margin-top:4px;}
+.card-red   .card-num{color:var(--red);}
+.card-amber .card-num{color:var(--amber);}
+.card-green .card-num{color:var(--green);}
+
+/* ── Filter bar ── */
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--surface);border-radius:var(--radius);padding:12px 16px;
+  margin-bottom:16px;box-shadow:var(--shadow);}
+.filter-bar label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.filter-bar input,.filter-bar select{
+  border:1px solid var(--border);border-radius:6px;padding:5px 10px;
+  font-size:13px;background:#fff;color:var(--text);}
+.filter-bar input{width:200px;}
+.filter-bar .spacer{flex:1;}
+
+/* ── Table ── */
+.tbl-wrap{background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead th{background:var(--navy);color:#fff;padding:10px 12px;
+  font-size:11px;font-weight:700;text-align:left;
+  cursor:pointer;user-select:none;white-space:nowrap;}
+thead th:hover{background:var(--navy2);}
+tbody tr.group-row{cursor:pointer;transition:background .1s;}
+tbody tr.group-row:hover{background:#f8faff;}
+tbody tr.group-row.expanded{background:#f0f4ff;}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+
+/* ── Expand section ── */
+tr.detail-section{display:none;}
+tr.detail-section.open{display:table-row;}
+tr.detail-section td{padding:0;background:#f8faff;border-bottom:2px solid var(--border);}
+.detail-inner{padding:16px 20px 20px 36px;}
+.detail-desc{font-size:12px;color:var(--muted);font-style:italic;margin-bottom:12px;}
+.detail-desc strong{font-style:normal;font-weight:700;color:var(--navy);margin-right:6px;}
+.detail-subtitle{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px;}
+.member-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;}
+.member-tbl th{background:#eef1f8;padding:6px 10px;text-align:left;font-weight:700;
+  font-size:11px;color:var(--muted);}
+.member-tbl td{padding:6px 10px;border-bottom:1px solid var(--border);}
+.member-tbl tr.former        td{background:#fff5f5;color:var(--red);}
+.member-tbl tr.disabled-user td{background:#fff7ed;color:#92400e;}
+.member-tbl tr.guest         td{color:var(--purple);}
+.action-row{display:flex;gap:8px;margin-top:4px;}
+
+/* ── Tags & flags ── */
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;
+  font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;}
+.tag-m365 {background:#dbeafe;color:#1d4ed8;}
+.tag-sec  {background:#dcfce7;color:#15803d;}
+.tag-dist {background:#fef9c3;color:#854d0e;}
+.tag-unknown{background:#f1f5f9;color:var(--muted);}
+.tag-assigned{background:#f1f5f9;color:var(--muted);}
+.tag-dynamic{background:#f3e8ff;color:var(--purple);}
+
+.flag{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;
+  font-size:10px;font-weight:700;margin:1px;white-space:nowrap;}
+.flag-fs   {background:#fff1f2;color:var(--red);border:1px solid #fecdd3;}
+.flag-emp  {background:#fff5f5;color:var(--red);}
+.flag-noown{background:#fffbeb;color:var(--amber);}
+.flag-stale{background:#fffbeb;color:var(--amber);}
+.flag-na   {background:#f7f7f7;color:#aaa;font-style:italic;}
+.flag-nest {background:#f3e8ff;color:var(--purple);}
+.flag-sync {background:#f7f7f7;color:var(--muted);}
+.flag-guest{background:#f0f9ff;color:#0369a1;}
+.flag-dis  {background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;}
+
+.prio{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;}
+.prio-1{background:var(--red);}
+.prio-2{background:var(--amber);}
+.prio-3{background:var(--amber);opacity:.6;}
+.prio-4{background:#94a3b8;}
+.prio-5{background:#cbd5e1;}
+
+.expand-icon{display:inline-block;margin-right:6px;font-size:10px;
+  color:var(--muted);transition:transform .2s;}
+.group-row.expanded .expand-icon{transform:rotate(90deg);}
+
+.gname{font-weight:700;color:var(--navy);}
+.gname-sep{color:var(--border);font-weight:400;margin:0 2px;}
+.gname small{font-size:10px;font-weight:400;color:var(--muted);}
+.teams-badge{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;
+  border-radius:3px;background:#5b5fc7;color:#fff;margin-left:5px;vertical-align:middle;}
+.member-badge{font-size:9px;padding:1px 4px;border-radius:3px;margin-left:4px;}
+.badge-former  {background:#fecdd3;color:var(--red);}
+.badge-disabled{background:#fed7aa;color:#c2410c;}
+.badge-guest   {background:#dbeafe;color:#1d4ed8;}
+
+/* ── Pager ── */
+.pager{display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;font-size:12px;color:var(--muted);}
+.pager-btns{display:flex;gap:6px;}
+.pager-btns button{padding:4px 10px;border:1px solid var(--border);border-radius:5px;
+  background:#fff;cursor:pointer;font-size:12px;}
+.pager-btns button:disabled{opacity:.4;cursor:default;}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);
+  display:flex;align-items:center;justify-content:center;z-index:200;display:none;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:12px;padding:28px;width:440px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+.modal p{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:20px;}
+.modal-btns{display:flex;justify-content:flex-end;gap:10px;}
+
+/* ── Action log ── */
+.log-wrap{background:var(--surface);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;}
+.log-empty{padding:40px;text-align:center;color:var(--muted);font-size:13px;}
+.log-row{display:flex;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);
+  font-size:12px;align-items:flex-start;}
+.log-row:last-child{border-bottom:none;}
+.log-action{font-weight:700;min-width:120px;}
+.log-action.add{color:var(--green);}
+.log-action.remove{color:var(--red);}
+.log-meta{color:var(--muted);}
+
+/* ── User search dropdown ── */
+.user-search-wrap{position:relative;}
+.user-search-wrap input{width:100%;border:1px solid var(--border);border-radius:6px;
+  padding:8px 12px;font-size:13px;}
+.user-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;
+  border:1px solid var(--border);border-radius:6px;box-shadow:var(--shadow);
+  max-height:200px;overflow-y:auto;z-index:10;display:none;}
+.user-dropdown.open{display:block;}
+.user-opt{padding:8px 12px;cursor:pointer;font-size:13px;}
+.user-opt:hover{background:#f8faff;}
+.user-opt small{color:var(--muted);display:block;font-size:11px;}
+
+/* ── Users tab ── */
+.usr-tbl td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+</style>
+</head>
+<body>
+<div style="background:#7c3aed;color:#fff;text-align:center;padding:7px 16px;font-size:12px;font-weight:600;letter-spacing:.3px;">
+  DEMO &#x2014; Sample data only &nbsp;&#xB7;&nbsp; No real tenant connected
+</div>
+<div id="demoNotice" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:2000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:360px;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.2);">
+    <div style="font-size:32px;margin-bottom:12px;">&#128274;</div>
+    <h3 style="margin-bottom:8px;color:#1e2d4a;">Demo Mode</h3>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:20px;">Write actions are disabled in demo mode. In the real app, this connects to Entra ID and makes live changes.</p>
+    <button onclick="closeDemoNotice()" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:8px 20px;font-size:14px;font-weight:600;cursor:pointer;">Got it</button>
+  </div>
+</div>
+
+
+<!-- Header -->
+<div class="header">
+  <div>
+    <div class="header-title">GroupDesk</div>
+    <div class="header-meta" id="headerMeta">Connecting...</div>
+  </div>
+  <div class="header-right" id="headerRight" style="display:none;">
+    <span class="user-chip" id="userChip"></span>
+    <button class="btn btn-ghost" onclick="refreshData()">↺ Refresh</button>
+    <button class="btn btn-ghost" onclick="signOut()" style="background:rgba(220,38,38,.3);">Sign Out</button>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs" id="tabs" style="display:none;">
+  <div class="tab active" onclick="showTab('groups',this)">Groups</div>
+  <div class="tab" onclick="showTab('users',this)">Users</div>
+  <div class="tab" onclick="showTab('log',this)">Action Log <span id="logBadge"></span></div>
+</div>
+
+<!-- Auth screen -->
+<div class="auth-screen" id="authScreen" style="display:none;">
+  <svg class="ms-logo" style="width:48px;height:48px;" viewBox="0 0 21 21" fill="none">
+    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+  </svg>
+  <h2>GroupDesk</h2>
+  <p>Sign in with your Microsoft account to access the console. Only authorised IT team members can proceed.</p>
+  <button class="ms-btn" onclick="signIn()">
+    <svg class="ms-logo" viewBox="0 0 21 21" fill="none">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+    </svg>
+    Sign in with Microsoft
+  </button>
+</div>
+
+<!-- Loading screen -->
+<div class="loading-screen" id="loadingScreen" style="display:none;">
+  <div class="spinner"></div>
+  <div style="font-weight:700;font-size:15px;">Loading group data...</div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+  <div class="progress-text" id="progressText">Starting...</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+    Progress is visible in the PowerShell console
+  </div>
+</div>
+
+<!-- Groups tab -->
+<div class="main" id="tabGroups" style="display:none;">
+  <div class="cards" id="grpCards"></div>
+  <div class="filter-bar">
+    <label>SEARCH</label>
+    <input type="text" id="grpSearch" placeholder="Group name or description..." oninput="grpFilter()">
+    <label>TYPE</label>
+    <select id="grpType" onchange="grpFilter()">
+      <option value="">All types</option>
+      <option value="Microsoft 365">Microsoft 365</option>
+      <option value="Security">Security</option>
+      <option value="Distribution">Distribution</option>
+      <option value="Teams">Teams</option>
+    </select>
+    <label>MEMBERSHIP</label>
+    <select id="grpMembership" onchange="grpFilter()">
+      <option value="">All</option>
+      <option value="Assigned">Assigned</option>
+      <option value="Dynamic">Dynamic</option>
+    </select>
+    <label>ISSUE</label>
+    <select id="grpIssue" onchange="grpFilter()">
+      <option value="">All groups</option>
+      <option value="DisabledUser">Inactive Member</option>
+      <option value="InactiveOwner">Inactive Owner</option>
+      <option value="Empty">Empty</option>
+      <option value="NoOwner">No Owner</option>
+      <option value="Stale">Stale</option>
+      <option value="HasNested">Has Nested Groups</option>
+      <option value="OnPremSync">On-Prem Sync</option>
+      <option value="none">No Issues</option>
+    </select>
+    <button class="btn btn-outline" onclick="clearGrpFilter()">Clear</button>
+    <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+    <div class="spacer"></div>
+    <span id="grpCount" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px;"></th>
+          <th onclick="grpSort('displayName')">Group Name ↕</th>
+          <th onclick="grpSort('groupCategory')">Type ↕</th>
+          <th onclick="grpSort('membershipType')">Membership ↕</th>
+          <th onclick="grpSort('activeMembers')">Members ↕</th>
+          <th>Nested Groups</th>
+          <th>Dynamic Rule</th>
+          <th>Owners</th>
+          <th>Issues</th>
+          <th onclick="grpSort('action')">Recommended Action ↕</th>
+        </tr>
+      </thead>
+      <tbody id="grpBody"></tbody>
+    </table>
+    <div class="pager" id="grpPager"></div>
+  </div>
+</div>
+
+<!-- Users tab -->
+<div class="main" id="tabUsers" style="display:none;">
+  <div class="cards" id="usrCards"></div>
+  <div class="filter-bar">
+    <label>SEARCH</label>
+    <input type="text" id="usrSearch" placeholder="Name, email, or department..." oninput="uPage=1;renderUsersTab()">
+    <label>STATUS</label>
+    <select id="usrType" onchange="uPage=1;renderUsersTab()">
+      <option value="">All users</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+      <option value="guest">Guest</option>
+    </select>
+    <label>MIN GROUPS</label>
+    <select id="usrMinGroups" onchange="uPage=1;renderUsersTab()">
+      <option value="0">Any</option>
+      <option value="1">1+</option>
+      <option value="5">5+</option>
+      <option value="10">10+</option>
+      <option value="20">20+</option>
+    </select>
+    <button class="btn btn-outline" onclick="clearUsrFilter()">Clear</button>
+    <div class="spacer"></div>
+    <span id="usrCount" style="font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap;"></span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px;"></th>
+          <th onclick="usrSort('displayName')">Name ↕</th>
+          <th onclick="usrSort('email')">Email ↕</th>
+          <th onclick="usrSort('department')">Department ↕</th>
+          <th onclick="usrSort('companyName')">Company ↕</th>
+          <th onclick="usrSort('jobTitle')">Job Title ↕</th>
+          <th onclick="usrSort('officeLocation')">Office ↕</th>
+          <th onclick="usrSort('_groups')">Groups ↕</th>
+        </tr>
+      </thead>
+      <tbody id="usrBody"></tbody>
+    </table>
+    <div class="pager" id="usrPager"></div>
+  </div>
+</div>
+
+<!-- Action log tab -->
+<div class="main" id="tabLog" style="display:none;">
+  <div class="log-wrap" id="logWrap">
+    <div class="log-empty">No actions taken yet this session.</div>
+  </div>
+</div>
+
+<!-- Confirmation modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3 id="modalTitle">Confirm action</h3>
+    <p id="modalBody"></p>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="modalConfirm" onclick="confirmAction()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add member/owner modal -->
+<div class="modal-overlay" id="addModalOverlay">
+  <div class="modal">
+    <h3 id="addModalTitle">Add member</h3>
+    <p style="margin-bottom:12px;color:var(--muted);font-size:13px;" id="addModalDesc"></p>
+    <div class="user-search-wrap">
+      <input type="text" id="userSearchInput" placeholder="Search by name or email..."
+             oninput="searchUsers(this.value)" autocomplete="off">
+      <div class="user-dropdown" id="userDropdown"></div>
+    </div>
+    <div style="margin-top:16px;padding:10px;background:#f8faff;border-radius:6px;
+                font-size:13px;display:none;" id="selectedUserChip"></div>
+    <div class="modal-btns" style="margin-top:20px;">
+      <button class="btn btn-outline" onclick="closeAddModal()">Cancel</button>
+      <button class="btn btn-primary" id="addModalConfirm" onclick="confirmAdd()" disabled>Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let GROUPS = [], gFiltered = [], USERS = [];
+let USER_GROUP_MAP = {};
+let gPage = 1, G_PAGE = 50;
+let uPage = 1, U_PAGE = 50, uFiltered = [];
+let uSortKey = 'displayName', uSortAsc = true;
+let gSortKey = 'priority', gSortAsc = true;
+let pendingAction = null;
+let addContext = null;  // { groupId, type: 'member'|'owner' }
+let selectedUser = null;
+let searchTimer = null;
+let _dropdownUsers = [];  // parallel array for user dropdown — avoids JSON in onclick
+
+const CAT_CSS = {
+  'Microsoft 365': 'tag-m365',
+  'Security':      'tag-sec',
+  'Distribution':  'tag-dist',
+};
+const MEM_CSS = { 'Assigned': 'tag-assigned', 'Dynamic': 'tag-dynamic' };
+
+// ── Utility ────────────────────────────────────────────────────────────────
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/\\/g,'&#92;');
+}
+async function api(path, opts={}) {
+  const r = await fetch(path, { headers:{'Content-Type':'application/json'}, ...opts });
+  if (!r.ok) { const e = await r.json().catch(()=>({})); throw new Error(e.error||`HTTP ${r.status}`); }
+  return r.json();
+}
+function showTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tabGroups').style.display = name==='groups'?'block':'none';
+  document.getElementById('tabUsers').style.display  = name==='users' ?'block':'none';
+  document.getElementById('tabLog').style.display    = name==='log'   ?'block':'none';
+  if (name==='log')   renderLog();
+  if (name==='users') renderUsersTab();
+}
+
+// ── Bootstrap ──────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const auth = await api('/api/auth');
+    if (!auth.authenticated) {
+      document.getElementById('authScreen').style.display = 'flex';
+      document.getElementById('headerMeta').textContent = 'Not signed in';
+      window._authUrl = auth.authUrl;
+    } else {
+      document.getElementById('headerRight').style.display = 'flex';
+      document.getElementById('userChip').textContent = auth.user.displayName;
+      document.getElementById('tabs').style.display = 'flex';
+      document.getElementById('headerMeta').textContent =
+        `${auth.user.mail} · ${new Date().toLocaleString()}`;
+      await loadGroups();
+    }
+  } catch(e) {
+    document.getElementById('headerMeta').textContent = 'Error: ' + e.message;
+  }
+}
+
+function signIn() {
+  if (window._authUrl) window.location.href = window._authUrl;
+}
+
+async function loadGroups() {
+  document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('tabGroups').style.display = 'none';
+  document.getElementById('tabs').style.display = 'none';
+
+  // Poll progress while waiting for /api/groups
+  const pollInterval = setInterval(async () => {
+    try {
+      const p = await api('/api/progress');
+      document.getElementById('progressText').textContent = p.message || '';
+      if (p.total > 0) {
+        const pct = Math.round((p.current / p.total) * 100);
+        document.getElementById('progressBar').style.width = pct + '%';
+      }
+    } catch(_) {}
+  }, 2000);
+
+  try {
+    const data = await api('/api/groups');
+    clearInterval(pollInterval);
+    GROUPS = data;
+    USERS  = await api('/api/users');
+    USER_GROUP_MAP = buildUserGroupMap();
+    grpFilter();
+    renderCards();
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('tabGroups').style.display = 'block';
+    document.getElementById('tabs').style.display = 'flex';
+  } catch(e) {
+    clearInterval(pollInterval);
+    document.getElementById('progressText').textContent = 'Error: ' + e.message;
+  }
+}
+
+async function refreshData() {
+  try { await api('/api/refresh', { method:'POST' }); } catch(_){}
+  await loadGroups();
+}
+
+// ── Cards ──────────────────────────────────────────────────────────────────
+function renderCards() {
+  const fs = GROUPS.filter(g=>g.issues.includes('DisabledUser')).length;
+  const em = GROUPS.filter(g=>g.issues.includes('Empty')).length;
+  const no = GROUPS.filter(g=>g.issues.includes('NoOwner')).length;
+  const st = GROUPS.filter(g=>g.issues.includes('Stale')).length;
+  const ok = GROUPS.filter(g=>g.issues.length===0).length;
+  document.getElementById('grpCards').innerHTML = [
+    `<div class="card card-${GROUPS.length>0?'':'green'}">
+       <div class="card-num">${GROUPS.length}</div><div class="card-label">Groups Audited</div></div>`,
+    `<div class="card ${fs>0?'card-red':''}">
+       <div class="card-num">${fs}</div><div class="card-label">Have Inactive Members</div></div>`,
+    `<div class="card ${em>0?'card-amber':''}">
+       <div class="card-num">${em}</div><div class="card-label">Empty Groups</div></div>`,
+    `<div class="card ${no>0?'card-amber':''}">
+       <div class="card-num">${no}</div><div class="card-label">No Owner (M365)</div></div>`,
+    `<div class="card ${st>0?'card-amber':''}">
+       <div class="card-num">${st}</div><div class="card-label">Stale 90d+</div></div>`,
+    `<div class="card card-green">
+       <div class="card-num">${ok}</div><div class="card-label">No Issues</div></div>`,
+  ].join('');
+}
+
+// ── Filter & Sort ──────────────────────────────────────────────────────────
+function grpFilter() {
+  const s   = document.getElementById('grpSearch').value.toLowerCase();
+  const t   = document.getElementById('grpType').value;
+  const mem = document.getElementById('grpMembership').value;
+  const iss = document.getElementById('grpIssue').value;
+  gFiltered = GROUPS.filter(g => {
+    if (s && !g.displayName.toLowerCase().includes(s) &&
+             !(g.description||'').toLowerCase().includes(s)) return false;
+    if (t === 'Teams') { if (!g.hasTeam) return false; }
+    else if (t && g.groupCategory !== t) return false;
+    if (mem && g.membershipType !== mem) return false;
+    if (iss === 'none' && g.issues.length > 0) return false;
+    if (iss && iss !== 'none' && !g.issues.includes(iss)) return false;
+    return true;
+  });
+  grpSortApply();
+  gPage = 1;
+  renderGrpTable();
+}
+
+function grpSort(key) {
+  if (gSortKey === key) { gSortAsc = !gSortAsc; } else { gSortKey = key; gSortAsc = true; }
+  grpSortApply();
+  gPage = 1;
+  renderGrpTable();
+}
+
+function grpSortApply() {
+  gFiltered.sort((a,b) => {
+    let av = a[gSortKey] ?? '', bv = b[gSortKey] ?? '';
+    if (typeof av === 'number') return gSortAsc ? av-bv : bv-av;
+    return gSortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+}
+
+function clearGrpFilter() {
+  document.getElementById('grpSearch').value = '';
+  document.getElementById('grpType').value = '';
+  document.getElementById('grpMembership').value = '';
+  document.getElementById('grpIssue').value = '';
+  grpFilter();
+}
+
+// ── Render table ───────────────────────────────────────────────────────────
+function renderGrpTable() {
+  const start = (gPage-1)*G_PAGE, end = start+G_PAGE;
+  const page  = gFiltered.slice(start, end);
+  const rows  = page.map((g,i) => {
+    const idx = start + i;
+    const rid = `dr-${idx}`;
+
+    const memberCell = g.isDynamic
+      ? '<span style="color:var(--purple);font-size:11px;">Dynamic</span>'
+      : `${g.activeMembers} active${g.disabledCount>0?` · <span style="color:#c2410c;">${g.disabledCount} inactive</span>`:''}`;
+
+    const nestedCell = g.nestedGroupCount > 0
+      ? `<strong>${g.nestedGroupCount}</strong>`
+      : '—';
+
+    const dynRule = g.membershipRule
+      ? `<span title="${esc(g.membershipRule)}" style="font-size:10px;color:var(--purple);cursor:help;">View rule</span>`
+      : '—';
+
+    const ownersCell = g.ownerSource === 'exchange'
+      ? '<span style="color:var(--muted);font-size:10px;font-style:italic;" title="Managed via Exchange Online (ManagedBy)">Exchange managed</span>'
+      : g.owners.length > 0
+        ? g.owners.map(o =>
+            `<div style="font-size:11px;${o.isFormerStaff?'color:var(--red);font-weight:600;':o.isDisabled?'color:#c2410c;font-weight:600;':''}">
+               ${esc(o.name)}${o.isFormerStaff?' <span class="member-badge badge-former">FORMER</span>':o.isDisabled?' <span class="member-badge badge-disabled">INACTIVE</span>':''}
+             </div>`).join('')
+        : '<span style="color:var(--amber);font-size:11px;font-weight:600;">None</span>';
+
+    const flags = flagsHtml(g);
+
+    return `
+      <tr class="group-row" onclick="toggleDetail('${rid}',this,'${esc(g.id)}')">
+        <td style="text-align:center;">
+          <span class="expand-icon">▶</span>
+          <span class="prio prio-${g.priority}"></span>
+        </td>
+        <td>
+          <div class="gname">
+            ${esc(g.displayName)}
+            ${g.hasTeam?'<span class="teams-badge" title="Connected to Teams">Teams</span>':''}
+            ${g.mail?`<span class="gname-sep"> · </span><small>${esc(g.mail)}</small>`:''}
+          </div>
+        </td>
+        <td><span class="tag ${CAT_CSS[g.groupCategory]||'tag-unknown'}">${esc(g.groupCategory)}</span></td>
+        <td><span class="tag ${MEM_CSS[g.membershipType]||'tag-unknown'}">${esc(g.membershipType)}</span></td>
+        <td>${memberCell}</td>
+        <td>${nestedCell}</td>
+        <td>${dynRule}</td>
+        <td>${ownersCell}</td>
+        <td>${flags}</td>
+        <td style="font-size:11px;">${esc(g.action)}</td>
+      </tr>
+      <tr class="detail-section" id="${rid}">
+        <td colspan="10">
+          <div class="detail-inner" id="di-${idx}"></div>
+        </td>
+      </tr>`;
+  });
+
+  document.getElementById('grpBody').innerHTML = rows.join('');
+  renderGrpPager();
+}
+
+function flagsHtml(g) {
+  const out = [];
+  if (g.issues.includes('DisabledUser'))     out.push(`<span class="flag flag-dis">⚠ Inactive (${g.disabledCount})</span>`);
+  if (g.issues.includes('InactiveOwner'))    out.push(`<span class="flag flag-dis">⚠ Inactive Owner</span>`);
+  if (g.issues.includes('Empty'))            out.push(`<span class="flag flag-emp">Empty</span>`);
+  if (g.issues.includes('NoOwner'))          out.push(`<span class="flag flag-noown">No Owner</span>`);
+  if (g.issues.includes('Stale'))            out.push(`<span class="flag flag-stale">Stale ${g.staleDays}d+</span>`);
+  else if (!g.staleApplicable)               out.push(`<span class="flag flag-na" title="Stale detection only applies to M365 groups">Stale N/A</span>`);
+  if (g.issues.includes('HasNested'))        out.push(`<span class="flag flag-nest">Nested</span>`);
+  if (g.issues.includes('OnPremSync'))       out.push(`<span class="flag flag-sync">On-Prem</span>`);
+  if (g.issues.includes('HasGuests'))        out.push(`<span class="flag flag-guest">Guests (${g.guestCount})</span>`);
+  return out.join('') || '<span style="color:var(--muted);font-size:11px;">—</span>';
+}
+
+// ── Pager ──────────────────────────────────────────────────────────────────
+function renderGrpPager() {
+  const total = gFiltered.length;
+  const pages = Math.ceil(total / G_PAGE);
+  document.getElementById('grpCount').textContent = `${total} group${total===1?'':'s'}`;
+  document.getElementById('grpPager').innerHTML = `
+    <div class="pager-btns">
+      <button onclick="goPage(${gPage-1})" ${gPage<=1?'disabled':''}>← Prev</button>
+      <span style="padding:4px 8px;">Page ${gPage} / ${pages||1}</span>
+      <button onclick="goPage(${gPage+1})" ${gPage>=pages?'disabled':''}>Next →</button>
+    </div>`;
+}
+function goPage(p) { gPage = p; renderGrpTable(); }
+
+// ── Detail expand ──────────────────────────────────────────────────────────
+function toggleDetail(rid, row, groupId) {
+  const sec  = document.getElementById(rid);
+  const open = sec.classList.toggle('open');
+  row.classList.toggle('expanded', open);
+  if (open) {
+    const idx  = rid.replace('dr-','');
+    const g    = gFiltered[parseInt(idx)];
+    if (g) renderDetailInner(idx, g);
+  }
+}
+
+function renderDetailInner(idx, g) {
+  const container = document.getElementById(`di-${idx}`);
+  const desc = g.description
+    ? `<div class="detail-desc"><strong>Description</strong>${esc(g.description)}</div>` : '';
+
+  const memberRows = g.members.map(m => {
+    const cls = m.isDisabled?'disabled-user':m.isGuest?'guest':'';
+    return `<tr class="${cls}">
+      <td>${esc(m.displayName)}
+        ${m.isDisabled?'<span class="member-badge badge-disabled">INACTIVE</span>':''}
+        ${m.isGuest?'<span class="member-badge" style="background:#dbeafe;color:#1d4ed8;">GUEST</span>':''}
+      </td>
+      <td>${esc(m.email)}</td>
+      <td>${esc(m.department)||'—'}</td>
+      <td>${esc(m.jobTitle)||'—'}</td>
+      <td>${esc(m.companyName)||'—'}</td>
+      <td>
+        ${!g.isDynamic?`<button class="btn btn-danger btn-sm" onclick="promptRemoveMember('${esc(g.id)}','${esc(m.id)}','${esc(m.displayName)}','${esc(g.displayName)}',event)">Remove</button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  const ownerRows = g.ownerSource === 'exchange' ? '' :
+    g.owners.map(o => `<tr class="${o.isFormerStaff?'former':o.isDisabled?'disabled-user':''}">
+      <td>${esc(o.name)}${o.isFormerStaff?'<span class="member-badge badge-former">FORMER</span>':o.isDisabled?'<span class="member-badge badge-disabled">INACTIVE</span>':''}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="promptRemoveOwner('${esc(g.id)}','${esc(o.id)}','${esc(o.name)}','${esc(g.displayName)}',event)">Remove</button></td>
+    </tr>`).join('');
+
+  const ownersSection = g.ownerSource === 'exchange'
+    ? '<div style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:8px;">Managed via Exchange Online (ManagedBy).</div>'
+    : g.owners.length > 0
+      ? `<table class="member-tbl"><thead><tr><th>Name</th><th></th></tr></thead><tbody>${ownerRows}</tbody></table>`
+      : '<div style="font-size:12px;color:var(--amber);font-weight:600;margin-bottom:8px;">No owners assigned</div>';
+
+  const nestedHtml = g.nestedGroupNames.length > 0
+    ? `<div class="detail-subtitle" style="margin-top:12px;">Nested Groups</div>
+       <ul style="font-size:12px;margin-left:16px;color:var(--purple);">
+         ${g.nestedGroupNames.map(n=>`<li>${esc(n)}</li>`).join('')}
+       </ul>` : '';
+
+  const dynRuleHtml = g.membershipRule
+    ? `<div class="detail-subtitle" style="margin-top:12px;">Dynamic Rule</div>
+       <code style="font-size:11px;background:#f1f5f9;padding:6px 10px;border-radius:4px;
+                    display:block;margin-top:4px;white-space:pre-wrap;word-break:break-all;">${esc(g.membershipRule)}</code>` : '';
+
+  const addMemberBtn = !g.isDynamic
+    ? `<button class="btn btn-primary btn-sm" style="margin-top:8px;" onclick="promptAdd('${esc(g.id)}','member','${esc(g.displayName)}',event)">+ Add Member</button>` : '';
+  const addOwnerBtn = !g.isDynamic && g.ownerSource==='graph'
+    ? `<button class="btn btn-outline btn-sm" style="margin-top:4px;" onclick="promptAdd('${esc(g.id)}','owner','${esc(g.displayName)}',event)">+ Add Owner</button>` : '';
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;font-size:12px;">
+      <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;font-weight:700;">Type</span><br>${esc(g.groupCategory)} · ${esc(g.membershipType)}</div>
+      <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;font-weight:700;">Email</span><br>${esc(g.mail)||'—'}</div>
+      <div><span style="color:var(--muted);text-transform:uppercase;font-size:10px;font-weight:700;">Description</span><br>${esc(g.description)||'—'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:24px;">
+      <div>
+        <div class="detail-subtitle">Owners (${g.ownerCount})</div>
+        ${ownersSection}
+        ${nestedHtml}
+        ${dynRuleHtml}
+        ${addOwnerBtn}
+      </div>
+      <div>
+        <div class="detail-subtitle">Members (${g.totalMembers})</div>
+        ${g.members.length > 0 ? `
+          <table class="member-tbl">
+            <thead><tr>
+              <th>Name</th><th>Email</th><th>Department</th><th>Job Title</th><th>Company</th><th></th>
+            </tr></thead>
+            <tbody>${memberRows}</tbody>
+          </table>` : '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">No members</div>'}
+        ${addMemberBtn}
+      </div>
+    </div>`;
+}
+
+// ── Write actions ──────────────────────────────────────────────────────────
+function promptRemoveMember(groupId, userId, userName, groupName, e) {
+  e.stopPropagation();
+  pendingAction = async () => {
+    await api(`/api/groups/${groupId}/members/${userId}`, { method:'DELETE' });
+    await refreshGroup(groupId);
+    updateLogBadge();
+  };
+  document.getElementById('modalTitle').textContent = 'Remove member';
+  document.getElementById('modalBody').textContent  =
+    `Remove "${userName}" from "${groupName}"? This cannot be undone from this console.`;
+  document.getElementById('modalConfirm').textContent = 'Remove';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function promptRemoveOwner(groupId, userId, userName, groupName, e) {
+  e.stopPropagation();
+  pendingAction = async () => {
+    await api(`/api/groups/${groupId}/owners/${userId}`, { method:'DELETE' });
+    await refreshGroup(groupId);
+    updateLogBadge();
+  };
+  document.getElementById('modalTitle').textContent = 'Remove owner';
+  document.getElementById('modalBody').textContent  =
+    `Remove "${userName}" as owner of "${groupName}"?`;
+  document.getElementById('modalConfirm').textContent = 'Remove';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function promptAdd(groupId, type, groupName, e) {
+  e.stopPropagation();
+  addContext = { groupId, type };
+  selectedUser = null;
+  document.getElementById('addModalTitle').textContent = type === 'member' ? 'Add member' : 'Add owner';
+  document.getElementById('addModalDesc').textContent  = `Search for a user to add to "${groupName}"`;
+  document.getElementById('userSearchInput').value = '';
+  document.getElementById('userDropdown').classList.remove('open');
+  document.getElementById('selectedUserChip').style.display = 'none';
+  document.getElementById('addModalConfirm').disabled = true;
+  document.getElementById('addModalOverlay').classList.add('open');
+}
+
+function closeModal()    { document.getElementById('modalOverlay').classList.remove('open'); pendingAction = null; }
+function closeAddModal() { document.getElementById('addModalOverlay').classList.remove('open'); addContext = null; selectedUser = null; }
+
+async function confirmAction() {
+  if (!pendingAction) return;
+  const btn = document.getElementById('modalConfirm');
+  btn.disabled = true; btn.textContent = 'Working...';
+  try { await pendingAction(); } catch(e) { alert('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Confirm';
+  closeModal();
+}
+
+async function confirmAdd() {
+  if (!selectedUser || !addContext) return;
+  const btn = document.getElementById('addModalConfirm');
+  btn.disabled = true; btn.textContent = 'Adding...';
+  try {
+    const path = addContext.type === 'member'
+      ? `/api/groups/${addContext.groupId}/members`
+      : `/api/groups/${addContext.groupId}/owners`;
+    await api(path, { method:'POST', body: JSON.stringify({ userId: selectedUser.id }) });
+    await refreshGroup(addContext.groupId);
+    updateLogBadge();
+    closeAddModal();
+  } catch(e) { alert('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Add';
+}
+
+// ── User search ────────────────────────────────────────────────────────────
+function searchUsers(q) {
+  clearTimeout(searchTimer);
+  if (!q || q.length < 2) { document.getElementById('userDropdown').classList.remove('open'); return; }
+  searchTimer = setTimeout(async () => {
+    const results = USERS.filter(u =>
+      u.displayName.toLowerCase().includes(q.toLowerCase()) ||
+      (u.email||'').toLowerCase().includes(q.toLowerCase())
+    ).slice(0, 10);
+    _dropdownUsers = results;  // store refs — avoids serialising user objects into onclick
+    const dd = document.getElementById('userDropdown');
+    dd.innerHTML = results.map((u, i) =>
+      `<div class="user-opt" data-idx="${i}">
+         ${esc(u.displayName)}<small>${esc(u.email)}</small>
+       </div>`).join('') || '<div class="user-opt" style="color:var(--muted);">No results</div>';
+    dd.classList.add('open');
+  }, 300);
+}
+
+function selectUser(u) {
+  selectedUser = u;
+  document.getElementById('userSearchInput').value = u.displayName;
+  document.getElementById('userDropdown').classList.remove('open');
+  const chip = document.getElementById('selectedUserChip');
+  chip.style.display = 'block';
+  chip.innerHTML = `<strong>${esc(u.displayName)}</strong> <span style="color:var(--muted)">${esc(u.email)}</span>`;
+  document.getElementById('addModalConfirm').disabled = false;
+}
+
+// ── Refresh single group ───────────────────────────────────────────────────
+async function refreshGroup(groupId) {
+  try {
+    const updated = await api(`/api/groups/${groupId}`);
+    const i = GROUPS.findIndex(g => g.id === groupId);
+    if (i >= 0) GROUPS[i] = updated;
+    const fi = gFiltered.findIndex(g => g.id === groupId);
+    if (fi >= 0) { gFiltered[fi] = updated; renderDetailInner(fi, updated); }
+    USER_GROUP_MAP = buildUserGroupMap();
+    renderCards();
+  } catch(e) { console.error(e); }
+}
+
+// ── Action log ─────────────────────────────────────────────────────────────
+async function renderLog() {
+  const log = await api('/api/log').catch(()=>[]);
+  const wrap = document.getElementById('logWrap');
+  if (!log.length) {
+    wrap.innerHTML = '<div class="log-empty">No actions taken yet this session.</div>';
+    return;
+  }
+  const actionLabels = {
+    AddMember: 'Added Member', RemoveMember: 'Removed Member',
+    AddOwner:  'Added Owner',  RemoveOwner:  'Removed Owner'
+  };
+  const actionCls = { AddMember:'add', AddOwner:'add', RemoveMember:'remove', RemoveOwner:'remove' };
+  wrap.innerHTML = log.map(e => {
+    const g = GROUPS.find(g => g.id === e.groupId);
+    const u = USERS.find(u => u.id === e.targetId);
+    return `<div class="log-row">
+      <span class="log-action ${actionCls[e.action]||''}">${actionLabels[e.action]||e.action}</span>
+      <div>
+        <div><strong>${esc(u?.displayName||e.targetId)}</strong> — ${esc(g?.displayName||e.groupId)}</div>
+        <div class="log-meta">${new Date(e.timestamp).toLocaleString()} · by ${esc(e.by)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateLogBadge() {
+  api('/api/log').then(log => {
+    document.getElementById('logBadge').textContent = log.length ? `(${log.length})` : '';
+  }).catch(()=>{});
+}
+
+// ── CSV export ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  const cols = ['displayName','mail','groupCategory','membershipType',
+                'activeMembers','formerStaffCount','guestCount','nestedGroupCount',
+                'ownerCount','isStale','membershipRule','action'];
+  const rows = [cols.join(',')];
+  gFiltered.forEach(g => {
+    rows.push(cols.map(c => `"${String(g[c]??'').replace(/"/g,'""')}"`).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `groupdesk_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ── Dropdown: delegated click + close on outside click ────────────────────
+document.getElementById('userDropdown').addEventListener('click', e => {
+  const opt = e.target.closest('[data-idx]');
+  if (!opt) return;
+  const idx = parseInt(opt.dataset.idx, 10);
+  if (!isNaN(idx) && _dropdownUsers[idx]) selectUser(_dropdownUsers[idx]);
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.user-search-wrap')) {
+    document.getElementById('userDropdown').classList.remove('open');
+  }
+});
+
+// ── User-group map ─────────────────────────────────────────────────────────
+function buildUserGroupMap() {
+  const map = {};
+  GROUPS.forEach(g => {
+    (g.members||[]).forEach(m => {
+      if (!map[m.id]) map[m.id] = { memberOf:[], ownerOf:[] };
+      map[m.id].memberOf.push({ id:g.id, displayName:g.displayName,
+        groupCategory:g.groupCategory, isDynamic:g.isDynamic, ownerSource:g.ownerSource });
+    });
+    (g.owners||[]).forEach(o => {
+      if (!map[o.id]) map[o.id] = { memberOf:[], ownerOf:[] };
+      map[o.id].ownerOf.push({ id:g.id, displayName:g.displayName, groupCategory:g.groupCategory });
+    });
+  });
+  return map;
+}
+
+// ── Users tab ──────────────────────────────────────────────────────────────
+function renderUserCards() {
+  const active   = USERS.filter(u => u.isActive && !u.isGuest).length;
+  const former   = USERS.filter(u => u.isDisabled).length;
+  const guests   = USERS.filter(u => u.isGuest).length;
+  const inGroups = USERS.filter(u => {
+    const m = USER_GROUP_MAP[u.id];
+    return m && (m.memberOf.length + m.ownerOf.length) > 0;
+  }).length;
+  const maxGroups = USERS.reduce((max, u) => {
+    const m = USER_GROUP_MAP[u.id];
+    return Math.max(max, m ? m.memberOf.length + m.ownerOf.length : 0);
+  }, 0);
+  document.getElementById('usrCards').innerHTML = [
+    `<div class="card"><div class="card-num">${inGroups}</div><div class="card-label">Users in Groups</div></div>`,
+    `<div class="card card-green"><div class="card-num">${active}</div><div class="card-label">Active</div></div>`,
+    `<div class="card ${former>0?'card-amber':''}"><div class="card-num">${former}</div><div class="card-label">Inactive</div></div>`,
+    `<div class="card"><div class="card-num">${guests}</div><div class="card-label">Guests</div></div>`,
+    `<div class="card"><div class="card-num">${maxGroups}</div><div class="card-label">Max Groups (1 user)</div></div>`,
+  ].join('');
+}
+
+function usrSort(key) {
+  if (uSortKey === key) { uSortAsc = !uSortAsc; } else { uSortKey = key; uSortAsc = true; }
+  uPage = 1;
+  renderUsersTab();
+}
+
+function clearUsrFilter() {
+  document.getElementById('usrSearch').value = '';
+  document.getElementById('usrType').value = '';
+  document.getElementById('usrMinGroups').value = '0';
+  uPage = 1;
+  renderUsersTab();
+}
+
+function renderUsersTab() {
+  renderUserCards();
+  const s       = (document.getElementById('usrSearch')||{}).value || '';
+  const type    = (document.getElementById('usrType')||{}).value   || '';
+  const minGrps = parseInt((document.getElementById('usrMinGroups')||{}).value || '0');
+
+  uFiltered = USERS.filter(u => {
+    if (type === 'active'   && (!u.isActive || u.isGuest)) return false;
+    if (type === 'inactive' && !u.isDisabled)              return false;
+    if (type === 'guest'    && !u.isGuest)                 return false;
+    if (s && !u.displayName.toLowerCase().includes(s.toLowerCase()) &&
+             !(u.email||'').toLowerCase().includes(s.toLowerCase()) &&
+             !(u.department||'').toLowerCase().includes(s.toLowerCase())) return false;
+    if (minGrps > 0) {
+      const m = USER_GROUP_MAP[u.id];
+      if (!m || (m.memberOf.length + m.ownerOf.length) < minGrps) return false;
+    }
+    return true;
+  });
+
+  uFiltered.sort((a, b) => {
+    let av, bv;
+    if (uSortKey === '_groups') {
+      const am = USER_GROUP_MAP[a.id], bm = USER_GROUP_MAP[b.id];
+      av = am ? am.memberOf.length + am.ownerOf.length : 0;
+      bv = bm ? bm.memberOf.length + bm.ownerOf.length : 0;
+    } else {
+      av = a[uSortKey] ?? ''; bv = b[uSortKey] ?? '';
+    }
+    if (typeof av === 'number') return uSortAsc ? av-bv : bv-av;
+    return uSortAsc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+  });
+
+  const start = (uPage-1)*U_PAGE, end = start+U_PAGE;
+  const page  = uFiltered.slice(start, end);
+
+  const rows = page.map((u, i) => {
+    const idx  = start + i;
+    const urid = `ur-${idx}`;
+    const uMap = USER_GROUP_MAP[u.id] || { memberOf:[], ownerOf:[] };
+    const grpCount = uMap.memberOf.length + uMap.ownerOf.length;
+
+    const nameBadge = u.isDisabled
+      ? ' <span class="member-badge badge-disabled">INACTIVE</span>'
+      : u.isGuest
+        ? ' <span class="member-badge" style="background:#dbeafe;color:#1d4ed8;">GUEST</span>'
+        : '';
+
+    return `
+      <tr class="group-row" onclick="toggleUserDetail('${urid}','${esc(u.id)}',this)">
+        <td style="text-align:center;"><span class="expand-icon">▶</span></td>
+        <td><div class="gname" style="${u.isDisabled?'color:#c2410c;':''}">${esc(u.displayName)}${nameBadge}</div></td>
+        <td style="font-size:12px;">${esc(u.email)}</td>
+        <td style="font-size:12px;">${esc(u.department)||'—'}</td>
+        <td style="font-size:12px;">${esc(u.companyName)||'—'}</td>
+        <td style="font-size:12px;">${esc(u.jobTitle)||'—'}</td>
+        <td style="font-size:12px;">${esc(u.officeLocation)||'—'}</td>
+        <td style="font-size:12px;font-weight:${grpCount>0?'700':'400'};">${grpCount}</td>
+      </tr>
+      <tr class="detail-section" id="${urid}">
+        <td colspan="8"><div class="detail-inner" id="udi-${esc(u.id)}"></div></td>
+      </tr>`;
+  });
+
+  document.getElementById('usrBody').innerHTML = rows.join('');
+
+  const total = uFiltered.length, pages = Math.ceil(total/U_PAGE);
+  document.getElementById('usrCount').textContent = `${total} user${total===1?'':'s'}`;
+  document.getElementById('usrPager').innerHTML = `
+    <div class="pager-btns">
+      <button onclick="usrGoPage(${uPage-1})" ${uPage<=1?'disabled':''}>← Prev</button>
+      <span style="padding:4px 8px;">Page ${uPage} / ${pages||1}</span>
+      <button onclick="usrGoPage(${uPage+1})" ${uPage>=pages?'disabled':''}>Next →</button>
+    </div>`;
+}
+
+function usrGoPage(p) { uPage = p; renderUsersTab(); }
+
+function toggleUserDetail(urid, userId, row) {
+  const sec  = document.getElementById(urid);
+  const open = sec.classList.toggle('open');
+  row.classList.toggle('expanded', open);
+  if (open) {
+    const u = USERS.find(u=>u.id===userId);
+    const container = document.getElementById(`udi-${userId}`);
+    if (u && container) renderUserDetail(userId, u, container);
+  }
+}
+
+function renderUserDetail(userId, u, container) {
+  const uMap   = USER_GROUP_MAP[userId] || { memberOf:[], ownerOf:[] };
+  const CAT_CSS2 = { 'Microsoft 365':'tag-m365', 'Security':'tag-sec', 'Distribution':'tag-dist' };
+
+  const memberRows = uMap.memberOf.length
+    ? uMap.memberOf.map(g => `<tr>
+        <td><span class="tag ${CAT_CSS2[g.groupCategory]||'tag-unknown'}">${esc(g.groupCategory)}</span></td>
+        <td>${esc(g.displayName)}</td>
+        <td>${!g.isDynamic
+          ? `<button class="btn btn-danger btn-sm" onclick="promptRemoveMemberFromUser('${esc(g.id)}','${esc(userId)}','${esc(g.displayName)}',event)">Remove</button>`
+          : '<span style="font-size:11px;color:var(--muted);">Dynamic</span>'}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="3" style="color:var(--muted);font-style:italic;padding:8px 10px;">No group memberships</td></tr>';
+
+  const ownerRows = uMap.ownerOf.length
+    ? uMap.ownerOf.map(g => `<tr>
+        <td><span class="tag ${CAT_CSS2[g.groupCategory]||'tag-unknown'}">${esc(g.groupCategory)}</span></td>
+        <td>${esc(g.displayName)}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="promptRemoveOwnerFromUser('${esc(g.id)}','${esc(userId)}','${esc(g.displayName)}',event)">Remove</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="3" style="color:var(--muted);font-style:italic;padding:8px 10px;">Not an owner of any groups</td></tr>';
+
+  container.innerHTML = `
+    <div style="display:flex;gap:32px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:300px;">
+        <div class="detail-subtitle">Member of (${uMap.memberOf.length})</div>
+        <table class="member-tbl" style="margin-top:6px;">
+          <thead><tr><th>Type</th><th>Group</th><th></th></tr></thead>
+          <tbody>${memberRows}</tbody>
+        </table>
+      </div>
+      <div style="flex:1;min-width:300px;">
+        <div class="detail-subtitle">Owner of (${uMap.ownerOf.length})</div>
+        <table class="member-tbl" style="margin-top:6px;">
+          <thead><tr><th>Type</th><th>Group</th><th></th></tr></thead>
+          <tbody>${ownerRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function promptRemoveMemberFromUser(groupId, userId, groupName, e) {
+  e.stopPropagation();
+  const u = USERS.find(u=>u.id===userId);
+  pendingAction = async () => {
+    await api(`/api/groups/${groupId}/members/${userId}`, { method:'DELETE' });
+    await refreshGroup(groupId);
+    updateLogBadge();
+    const c = document.getElementById(`udi-${userId}`);
+    if (c && u) renderUserDetail(userId, u, c);
+  };
+  document.getElementById('modalTitle').textContent = 'Remove from group';
+  document.getElementById('modalBody').textContent  =
+    `Remove "${u?.displayName||userId}" from "${groupName}"? This cannot be undone from this console.`;
+  document.getElementById('modalConfirm').textContent = 'Remove';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function promptRemoveOwnerFromUser(groupId, userId, groupName, e) {
+  e.stopPropagation();
+  const u = USERS.find(u=>u.id===userId);
+  pendingAction = async () => {
+    await api(`/api/groups/${groupId}/owners/${userId}`, { method:'DELETE' });
+    await refreshGroup(groupId);
+    updateLogBadge();
+    const c = document.getElementById(`udi-${userId}`);
+    if (c && u) renderUserDetail(userId, u, c);
+  };
+  document.getElementById('modalTitle').textContent = 'Remove owner';
+  document.getElementById('modalBody').textContent  =
+    `Remove "${u?.displayName||userId}" as owner of "${groupName}"?`;
+  document.getElementById('modalConfirm').textContent = 'Remove';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+// ── Sign out ───────────────────────────────────────────────────────────────
+async function signOut() {
+  try { await api('/api/logout', { method:'POST' }); } catch(_) {}
+  GROUPS = []; gFiltered = []; USERS = []; USER_GROUP_MAP = {};
+  ['tabGroups','tabUsers','tabLog','tabs','headerRight'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('headerMeta').textContent = 'Signed out';
+  init();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEMO MODE — hardcoded sample data, no backend required
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DEMO_GROUPS = [
+  { id:'g001', displayName:'All Staff', description:'Organisation-wide distribution list',
+    groupType:'Distribution', groupCategory:'Distribution', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'allstaff@fakeorg.com',
+    onPremSync:true, totalMembers:7, activeMembers:7,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:0, ownerSource:'exchange',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:["OnPremSync"], priority:4, action:'Review flagged items',
+    owners:[], members:[{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u002',displayName:'Sarah Chen',email:'sarah.chen@fakeorg.com',department:'Finance',jobTitle:'Financial Analyst',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u004',displayName:'Emma Williams',email:'emma.williams@fakeorg.com',department:'Human Resources',jobTitle:'HR Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u006',displayName:'Priya Patel',email:'priya.patel@fakeorg.com',department:'Engineering',jobTitle:'Security Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u011',displayName:'Thomas Garcia',email:'thomas.garcia@fakeorg.com',department:'Operations',jobTitle:'Project Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u012',displayName:'Olivia Martinez',email:'olivia.martinez@fakeorg.com',department:'IT',jobTitle:'Systems Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u013',displayName:'William Taylor',email:'william.taylor@fakeorg.com',department:'Human Resources',jobTitle:'HR Director',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g002', displayName:'IT Security Team', description:'Internal IT security operations group',
+    groupType:'Security', groupCategory:'Security', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'',
+    onPremSync:false, totalMembers:3, activeMembers:3,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:2, ownerSource:'graph',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:[], priority:5, action:'No action needed',
+    owners:[{id:'u001',name:'Alex Johnson',isDisabled:false},{id:'u012',name:'Olivia Martinez',isDisabled:false}], members:[{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u006',displayName:'Priya Patel',email:'priya.patel@fakeorg.com',department:'Engineering',jobTitle:'Security Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u012',displayName:'Olivia Martinez',email:'olivia.martinez@fakeorg.com',department:'IT',jobTitle:'Systems Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g003', displayName:'Finance & Accounting', description:'Finance team collaboration space',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'finance@fakeorg.com',
+    onPremSync:false, totalMembers:4, activeMembers:2,
+    disabledCount:2, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:false, staleApplicable:true, staleDays:90,
+    issues:["DisabledUser"], priority:1, action:'Review inactive users',
+    owners:[{id:'u002',name:'Sarah Chen',isDisabled:false}], members:[{id:'u002',displayName:'Sarah Chen',email:'sarah.chen@fakeorg.com',department:'Finance',jobTitle:'Financial Analyst',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u008',displayName:'Lisa Anderson',email:'lisa.anderson@fakeorg.com',department:'Finance',jobTitle:'Senior Accountant',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u005',displayName:'James Lee',email:'james.lee@fakeorg.com',department:'IT',jobTitle:'IT Support',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false},{id:'u015',displayName:'Daniel Wilson',email:'daniel.wilson@fakeorg.com',department:'Sales',jobTitle:'Account Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false}]},
+  { id:'g004', displayName:'Project Helios', description:'Cross-functional project group',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:true, membershipRule:null, mail:'helios@fakeorg.com',
+    onPremSync:false, totalMembers:3, activeMembers:3,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:true, staleApplicable:true, staleDays:90,
+    issues:["Stale"], priority:3, action:'No activity 90d+ — review',
+    owners:[{id:'u011',name:'Thomas Garcia',isDisabled:false}], members:[{id:'u003',displayName:'Michael Torres',email:'michael.torres@fakeorg.com',department:'Marketing',jobTitle:'Marketing Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u006',displayName:'Priya Patel',email:'priya.patel@fakeorg.com',department:'Engineering',jobTitle:'Security Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u011',displayName:'Thomas Garcia',email:'thomas.garcia@fakeorg.com',department:'Operations',jobTitle:'Project Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g005', displayName:'Executive Leadership', description:'Executive team and leadership',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'execs@fakeorg.com',
+    onPremSync:false, totalMembers:3, activeMembers:3,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:1,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:2, ownerSource:'graph',
+    isStale:false, staleApplicable:true, staleDays:90,
+    issues:["InactiveOwner"], priority:1, action:'Review inactive users',
+    owners:[{id:'u005',name:'James Lee',isDisabled:true},{id:'u001',name:'Alex Johnson',isDisabled:false}], members:[{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u004',displayName:'Emma Williams',email:'emma.williams@fakeorg.com',department:'Human Resources',jobTitle:'HR Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u013',displayName:'William Taylor',email:'william.taylor@fakeorg.com',department:'Human Resources',jobTitle:'HR Director',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g006', displayName:'Global Marketing', description:'Marketing team workspace',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:true, membershipRule:null, mail:'marketing@fakeorg.com',
+    onPremSync:false, totalMembers:4, activeMembers:3,
+    disabledCount:1, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:2, ownerSource:'graph',
+    isStale:false, staleApplicable:true, staleDays:90,
+    issues:["DisabledUser"], priority:1, action:'Review inactive users',
+    owners:[{id:'u003',name:'Michael Torres',isDisabled:false},{id:'u014',name:'Sophie Clark',isDisabled:false}], members:[{id:'u003',displayName:'Michael Torres',email:'michael.torres@fakeorg.com',department:'Marketing',jobTitle:'Marketing Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u007',displayName:'David Kim',email:'david.kim@fakeorg.com',department:'Sales',jobTitle:'Sales Representative',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u009',displayName:'Robert Brown',email:'robert.brown@fakeorg.com',department:'Marketing',jobTitle:'Content Strategist',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false},{id:'u014',displayName:'Sophie Clark',email:'sophie.clark@fakeorg.com',department:'Marketing',jobTitle:'Brand Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g007', displayName:'External Partners', description:'Vendor and partner access group',
+    groupType:'Security', groupCategory:'Security', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'',
+    onPremSync:false, totalMembers:2, activeMembers:1,
+    disabledCount:0, guestCount:1, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:["HasGuests"], priority:4, action:'Review flagged items',
+    owners:[{id:'u001',name:'Alex Johnson',isDisabled:false}], members:[{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u010',displayName:'Jennifer White',email:'jennifer.white@partner.com',department:'',jobTitle:'Partner Manager',companyName:'PartnerCo',officeLocation:'Remote',isDisabled:false,isGuest:true,isActive:false}]},
+  { id:'g008', displayName:'Legacy Operations', description:'Deprecated ops group — pending review',
+    groupType:'Security', groupCategory:'Security', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'',
+    onPremSync:false, totalMembers:0, activeMembers:0,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:0, ownerSource:'graph',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:["Empty", "NoOwner"], priority:2, action:'Review and delete if unused',
+    owners:[], members:[]},
+  { id:'g009', displayName:'HR Confidential', description:'HR sensitive documents and processes',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'hr-conf@fakeorg.com',
+    onPremSync:false, totalMembers:2, activeMembers:2,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:0, ownerSource:'graph',
+    isStale:false, staleApplicable:true, staleDays:90,
+    issues:["NoOwner"], priority:3, action:'Assign an owner',
+    owners:[], members:[{id:'u004',displayName:'Emma Williams',email:'emma.williams@fakeorg.com',department:'Human Resources',jobTitle:'HR Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u013',displayName:'William Taylor',email:'william.taylor@fakeorg.com',department:'Human Resources',jobTitle:'HR Director',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g010', displayName:'Compliance DL', description:'Regulatory compliance mailing list',
+    groupType:'Distribution', groupCategory:'Distribution', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'compliance@fakeorg.com',
+    onPremSync:false, totalMembers:4, activeMembers:4,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:0, ownerSource:'exchange',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:[], priority:5, action:'No action needed',
+    owners:[], members:[{id:'u002',displayName:'Sarah Chen',email:'sarah.chen@fakeorg.com',department:'Finance',jobTitle:'Financial Analyst',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u004',displayName:'Emma Williams',email:'emma.williams@fakeorg.com',department:'Human Resources',jobTitle:'HR Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u008',displayName:'Lisa Anderson',email:'lisa.anderson@fakeorg.com',department:'Finance',jobTitle:'Senior Accountant',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u013',displayName:'William Taylor',email:'william.taylor@fakeorg.com',department:'Human Resources',jobTitle:'HR Director',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g011', displayName:'DevOps Platform', description:'DevOps and infrastructure team',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:true, membershipRule:null, mail:'devops@fakeorg.com',
+    onPremSync:false, totalMembers:3, activeMembers:3,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:false, staleApplicable:true, staleDays:90,
+    issues:[], priority:5, action:'No action needed',
+    owners:[{id:'u006',name:'Priya Patel',isDisabled:false}], members:[{id:'u006',displayName:'Priya Patel',email:'priya.patel@fakeorg.com',department:'Engineering',jobTitle:'Security Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u012',displayName:'Olivia Martinez',email:'olivia.martinez@fakeorg.com',department:'IT',jobTitle:'Systems Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g012', displayName:'Azure Admins', description:'Azure subscription administrators',
+    groupType:'Security', groupCategory:'Security', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'',
+    onPremSync:true, totalMembers:3, activeMembers:3,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:["OnPremSync"], priority:4, action:'Review flagged items',
+    owners:[{id:'u001',name:'Alex Johnson',isDisabled:false}], members:[{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u006',displayName:'Priya Patel',email:'priya.patel@fakeorg.com',department:'Engineering',jobTitle:'Security Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u012',displayName:'Olivia Martinez',email:'olivia.martinez@fakeorg.com',department:'IT',jobTitle:'Systems Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g013', displayName:'Onboarding 2023', description:'New hire onboarding cohort — 2023',
+    groupType:'M365', groupCategory:'Microsoft 365', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'onboarding23@fakeorg.com',
+    onPremSync:false, totalMembers:3, activeMembers:3,
+    disabledCount:0, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:true, staleApplicable:true, staleDays:90,
+    issues:["Stale"], priority:3, action:'No activity 90d+ — review',
+    owners:[{id:'u004',name:'Emma Williams',isDisabled:false}], members:[{id:'u007',displayName:'David Kim',email:'david.kim@fakeorg.com',department:'Sales',jobTitle:'Sales Representative',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u003',displayName:'Michael Torres',email:'michael.torres@fakeorg.com',department:'Marketing',jobTitle:'Marketing Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u014',displayName:'Sophie Clark',email:'sophie.clark@fakeorg.com',department:'Marketing',jobTitle:'Brand Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true}]},
+  { id:'g014', displayName:'Board of Directors', description:'Board access and communications',
+    groupType:'Security', groupCategory:'Security', membershipType:'Assigned',
+    isDynamic:false, hasTeam:false, membershipRule:null, mail:'',
+    onPremSync:false, totalMembers:4, activeMembers:3,
+    disabledCount:1, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:false, staleApplicable:false, staleDays:90,
+    issues:["DisabledUser"], priority:1, action:'Review inactive users',
+    owners:[{id:'u001',name:'Alex Johnson',isDisabled:false}], members:[{id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u004',displayName:'Emma Williams',email:'emma.williams@fakeorg.com',department:'Human Resources',jobTitle:'HR Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u011',displayName:'Thomas Garcia',email:'thomas.garcia@fakeorg.com',department:'Operations',jobTitle:'Project Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u009',displayName:'Robert Brown',email:'robert.brown@fakeorg.com',department:'Marketing',jobTitle:'Content Strategist',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false}]},
+  { id:'g015', displayName:'Customer Success', description:'Customer success and account management',
+    groupType:'DynamicM365', groupCategory:'Microsoft 365', membershipType:'Dynamic',
+    isDynamic:true, hasTeam:true, membershipRule:'user.department -eq "Sales"', mail:'cs-team@fakeorg.com',
+    onPremSync:false, totalMembers:2, activeMembers:1,
+    disabledCount:1, guestCount:0, inactiveOwnerCount:0,
+    nestedGroupCount:0, nestedGroupNames:[],
+    ownerCount:1, ownerSource:'graph',
+    isStale:false, staleApplicable:true, staleDays:90,
+    issues:["DisabledUser"], priority:1, action:'Review inactive users',
+    owners:[{id:'u007',name:'David Kim',isDisabled:false}], members:[{id:'u007',displayName:'David Kim',email:'david.kim@fakeorg.com',department:'Sales',jobTitle:'Sales Representative',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},{id:'u015',displayName:'Daniel Wilson',email:'daniel.wilson@fakeorg.com',department:'Sales',jobTitle:'Account Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false}]}
+];
+
+const DEMO_USERS = [
+  {id:'u001',displayName:'Alex Johnson',email:'alex.johnson@fakeorg.com',department:'IT',jobTitle:'IT Administrator',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u002',displayName:'Sarah Chen',email:'sarah.chen@fakeorg.com',department:'Finance',jobTitle:'Financial Analyst',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u003',displayName:'Michael Torres',email:'michael.torres@fakeorg.com',department:'Marketing',jobTitle:'Marketing Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u004',displayName:'Emma Williams',email:'emma.williams@fakeorg.com',department:'Human Resources',jobTitle:'HR Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u005',displayName:'James Lee',email:'james.lee@fakeorg.com',department:'IT',jobTitle:'IT Support',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false},
+  {id:'u006',displayName:'Priya Patel',email:'priya.patel@fakeorg.com',department:'Engineering',jobTitle:'Security Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u007',displayName:'David Kim',email:'david.kim@fakeorg.com',department:'Sales',jobTitle:'Sales Representative',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u008',displayName:'Lisa Anderson',email:'lisa.anderson@fakeorg.com',department:'Finance',jobTitle:'Senior Accountant',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u009',displayName:'Robert Brown',email:'robert.brown@fakeorg.com',department:'Marketing',jobTitle:'Content Strategist',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false},
+  {id:'u010',displayName:'Jennifer White',email:'jennifer.white@partner.com',department:'',jobTitle:'Partner Manager',companyName:'PartnerCo',officeLocation:'Remote',isDisabled:false,isGuest:true,isActive:false},
+  {id:'u011',displayName:'Thomas Garcia',email:'thomas.garcia@fakeorg.com',department:'Operations',jobTitle:'Project Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u012',displayName:'Olivia Martinez',email:'olivia.martinez@fakeorg.com',department:'IT',jobTitle:'Systems Engineer',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u013',displayName:'William Taylor',email:'william.taylor@fakeorg.com',department:'Human Resources',jobTitle:'HR Director',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u014',displayName:'Sophie Clark',email:'sophie.clark@fakeorg.com',department:'Marketing',jobTitle:'Brand Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:false,isGuest:false,isActive:true},
+  {id:'u015',displayName:'Daniel Wilson',email:'daniel.wilson@fakeorg.com',department:'Sales',jobTitle:'Account Manager',companyName:'FakeOrg',officeLocation:'HQ',isDisabled:true,isGuest:false,isActive:false},
+];
+
+// ── Demo notice ─────────────────────────────────────────────────────────────
+function showDemoNotice() {
+  document.getElementById('demoNotice').style.display = 'flex';
+}
+function closeDemoNotice() {
+  document.getElementById('demoNotice').style.display = 'none';
+}
+
+// ── Override network/write functions ────────────────────────────────────────
+async function init() { /* no-op: overridden by demoInit */ }
+async function confirmAction() { closeModal(); showDemoNotice(); }
+async function confirmAdd()    { closeAddModal(); showDemoNotice(); }
+async function signOut()       { showDemoNotice(); }
+async function refreshData()   { showDemoNotice(); }
+async function renderLog() {
+  document.getElementById('logWrap').innerHTML =
+    '<div class="log-empty">No actions taken yet this session.</div>';
+}
+function updateLogBadge() {}
+
+// ── Demo init ───────────────────────────────────────────────────────────────
+function demoInit() {
+  document.getElementById('headerRight').style.display = 'flex';
+  document.getElementById('userChip').textContent = 'Demo User';
+  document.getElementById('tabs').style.display = 'flex';
+  document.getElementById('headerMeta').textContent =
+    'demo@fakeorg.com \u00B7 Demo Mode \u00B7 ' + new Date().toLocaleString();
+  GROUPS = DEMO_GROUPS;
+  USERS  = DEMO_USERS;
+  USER_GROUP_MAP = buildUserGroupMap();
+  grpFilter();
+  renderCards();
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('tabGroups').style.display    = 'block';
+}
+demoInit();
+
+</script>
+
+<footer style="text-align:center;padding:24px;font-size:11px;color:#999;border-top:1px solid var(--border);margin-top:32px;">
+  Built by <a href="https://github.com/hazplay" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:none;">HazPlay</a>
+  &nbsp;·&nbsp; MIT Licence &nbsp;·&nbsp;
+  <a href="https://github.com/HazPlay/SomeStuff/tree/main/M365/MgGraph/GroupDesk" target="_blank" rel="noopener" style="color:#6366f1;text-decoration:none;">GitHub</a>
+</footer>
+</body>
+</html>
