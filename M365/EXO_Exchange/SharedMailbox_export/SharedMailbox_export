@@ -84,9 +84,9 @@ function Resolve-Delegate {
     if ($recipientCache.ContainsKey($Id)) { return $recipientCache[$Id] }
     $info = try {
         # -Identity can match more than one recipient object for the same
-        # person (e.g. a linked/guest object in a related tenant such as
-        # FD-Labs) - Get-Recipient doesn't error on that ambiguity, it just
-        # returns multiple objects. Take the first one so DisplayName/UPN
+        # person (e.g. a linked/guest object synced from a related tenant
+        # or domain) - Get-Recipient doesn't error on that ambiguity, it
+        # just returns multiple objects. Take the first one so DisplayName/UPN
         # are always a single string instead of a 2-element array that gets
         # mangled into "Name,Name (X)" / "email1 email2" on render.
         $r = Get-Recipient -Identity $Id -ErrorAction Stop | Select-Object -First 1
