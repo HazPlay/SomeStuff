@@ -39,13 +39,13 @@ You'll be prompted to sign in to Exchange Online if you don't already have an ac
 
 ## Branding
 
-The report title includes a hardcoded company name. To personalize it, open the script and edit **line 318**:
+The report title includes a company placeholder. To personalize it, open the script and edit **line 318**:
 
 ```html
-<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; First Digital &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
+<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; Company &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
 ```
 
-Replace the company name with your own organization's, or a generic placeholder like `Your Company`. Note the line number will shift if you edit other parts of the script — search for the subtitle text if 318 no longer lines up.
+Replace the `Company` with your own organization's, or a you can leave it be. Note the line number will shift if you edit other parts of the script — search for the subtitle text if 318 no longer lines up.
 
 ## A note on the output
 
