@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shared Mailbox Report — Demo</title>
+<style>
+    body { font-family: Segoe UI, Arial, sans-serif; margin: 30px; color: #222; background: #f7f8fa; }
+    h1 { color: #1a1a1a; margin-bottom: 0; }
+    .subtitle { color: #666; margin-top: 4px; margin-bottom: 20px; font-size: 14px; }
+
+    .demo-banner {
+        background: #eaf3ff; color: #0a4d8c; border: 1px solid #b6d8ff;
+        padding: 10px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 13px;
+    }
+
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e5e5; margin-bottom: 16px; }
+    .tab-btn {
+        padding: 10px 20px; border: none; background: none; cursor: pointer;
+        font-size: 14px; font-weight: 600; color: #666;
+        border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s;
+    }
+    .tab-btn.active { color: #0078d4; border-bottom-color: #0078d4; }
+    .tab-btn:hover:not(.active) { color: #222; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .toolbar {
+        display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+        background: #fff; padding: 14px 18px; border-radius: 6px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 12px;
+    }
+    .toolbar .group { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #444; }
+    .toolbar input[type="text"] {
+        padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; width: 260px;
+    }
+    .toolbar select {
+        padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+    }
+    .toolbar button {
+        padding: 7px 16px; border: none; border-radius: 4px; background: #0078d4;
+        color: #fff; cursor: pointer; font-size: 13px;
+    }
+    .toolbar button:hover { background: #005a9e; }
+    .result-count { font-size: 13px; color: #666; margin-bottom: 10px; }
+
+    table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    th { background-color: #0078d4; color: #fff; text-align: left; padding: 10px 12px; font-size: 13px; }
+    td { padding: 9px 12px; border-bottom: 1px solid #e5e5e5; font-size: 13px; vertical-align: top; }
+
+    tr.mailbox-row { cursor: pointer; }
+    tr.mailbox-row:nth-of-type(4n+1) { background-color: #fafafa; }
+    tr.mailbox-row:hover { background-color: #eef6fc; }
+
+    .chevron-cell { width: 24px; text-align: center; color: #0078d4; }
+    .chevron { display: inline-block; transition: transform 0.15s ease; }
+    tr.mailbox-row.expanded .chevron { transform: rotate(90deg); }
+
+    tr.detail-row.hidden { display: none; }
+    tr.detail-row td { background: #f5f8fb; padding: 16px 20px 18px 42px; }
+    .no-perms { color: #888; font-style: italic; font-size: 13px; }
+    .lookup-warning {
+        background: #fff4e5; color: #8a5a00; border: 1px solid #f0c36d;
+        padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px;
+    }
+
+    .perm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .perm-col { background: #fff; border: 1px solid #e2e2e2; border-radius: 6px; padding: 10px 14px; }
+    .perm-col h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 8px; }
+    .perm-col ul { list-style: none; }
+    .perm-col li { padding: 6px 0; border-bottom: 1px solid #f0f0f0; }
+    .perm-col li:last-child { border-bottom: none; }
+    .perm-name { font-weight: 600; color: #222; font-size: 13px; }
+    .perm-sub { font-size: 11px; color: #888; }
+    .empty-note { color: #999; font-style: italic; font-size: 12px; }
+
+    .badge-full { color: #b00020; font-weight: 600; }
+    .badge-send { color: #0078d4; font-weight: 600; }
+    .badge-onbehalf { color: #6a1b9a; font-weight: 600; }
+    .badge-hidden { color: #b00020; font-weight: 600; }
+    .badge-visible { color: #2e7d32; font-weight: 600; }
+    .badge-warning { color: #b36b00; font-weight: 600; }
+
+    @media (max-width: 900px) { .perm-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Shared Mailbox Report</h1>
+<div class="subtitle">Generated 2026-07-17 12:30 &nbsp;|&nbsp; FakeOrg &nbsp;|&nbsp; 15 shared mailboxes</div>
+<div class="demo-banner">&#128274; This is a demo report with fabricated mailboxes, names, and emails for illustration only — no real data.</div>
+
+<div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('mailboxes', this)">Shared Mailboxes</button>
+    <button class="tab-btn" onclick="switchTab('users', this)">Users</button>
+</div>
+
+<!-- ── Shared Mailboxes tab ────────────────────────────────────────────── -->
+<div id="tab-mailboxes" class="tab-panel active">
+    <div class="toolbar">
+        <div class="group">
+            <input type="text" id="searchInput" placeholder="Search mailbox or delegate...">
+        </div>
+        <div class="group">
+            <label for="hiddenFilter">GAL:</label>
+            <select id="hiddenFilter">
+                <option value="all">All</option>
+                <option value="hidden">Hidden only</option>
+                <option value="visible">Visible only</option>
+            </select>
+        </div>
+        <div class="group">
+            <label><input type="checkbox" id="neverLoggedOnFilter"> Never logged on</label>
+        </div>
+        <div class="group">
+            <label><input type="checkbox" id="noPermsFilter"> No delegates assigned</label>
+        </div>
+        <div class="group">
+            <button id="resetBtn" type="button">Reset filters</button>
+        </div>
+    </div>
+
+    <div id="resultCount" class="result-count"></div>
+
+    <table id="mailboxTable">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Display Name</th>
+                <th>Primary SMTP</th>
+                <th>Items</th>
+                <th>Size</th>
+                <th>Last Logon</th>
+                <th>GAL</th>
+                <th>Delegates</th>
+            </tr>
+        </thead>
+        <tbody id="mailboxTableBody"></tbody>
+    </table>
+</div>
+
+<!-- ── Users tab ───────────────────────────────────────────────────────── -->
+<div id="tab-users" class="tab-panel">
+    <div class="toolbar">
+        <div class="group">
+            <input type="text" id="userSearchInput" placeholder="Search user name or UPN...">
+        </div>
+        <div class="group">
+            <label><input type="checkbox" class="userPermTypeFilter" value="Full Access"> Full Access</label>
+            <label><input type="checkbox" class="userPermTypeFilter" value="Send As"> Send As</label>
+            <label><input type="checkbox" class="userPermTypeFilter" value="Send on Behalf"> Send on Behalf</label>
+        </div>
+        <div class="group">
+            <button id="userResetBtn" type="button">Reset filters</button>
+        </div>
+    </div>
+
+    <div id="userResultCount" class="result-count"></div>
+
+    <table id="userTable">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Display Name</th>
+                <th>UPN</th>
+                <th>Full Access</th>
+                <th>Send As</th>
+                <th>Send on Behalf</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody id="userTableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    const mailboxData = [
+        { "DisplayName": "IT Helpdesk", "PrimarySmtp": "it.helpdesk@fake.org", "Alias": "ithelpdesk", "HiddenFromGAL": false, "ItemCount": 8432, "TotalItemSize": "2.1 GB (2254857830 bytes)", "LastLogonTime": "2026-07-16 09:14", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Alex Tan", "UPN": "alex.tan@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Priya Nair", "UPN": "priya.nair@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Marcus Lee", "UPN": "marcus.lee@fake.org", "Type": "Send As" }
+        ]},
+        { "DisplayName": "HR Enquiries", "PrimarySmtp": "hr.enquiries@fake.org", "Alias": "hrenquiries", "HiddenFromGAL": false, "ItemCount": 3210, "TotalItemSize": "780.4 MB (818463027 bytes)", "LastLogonTime": "2026-07-15 14:02", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Sarah Wong", "UPN": "sarah.wong@fake.org", "Type": "Full Access" },
+            { "DisplayName": "David Chen", "UPN": "david.chen@fake.org", "Type": "Send As" },
+            { "DisplayName": "Alex Tan", "UPN": "alex.tan@fake.org", "Type": "Send As" }
+        ]},
+        { "DisplayName": "Finance AP", "PrimarySmtp": "finance.ap@fake.org", "Alias": "financeap", "HiddenFromGAL": false, "ItemCount": 12004, "TotalItemSize": "3.4 GB (3650722201 bytes)", "LastLogonTime": "2026-07-17 08:47", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Nadia Rahman", "UPN": "nadia.rahman@fake.org", "Type": "Full Access" },
+            { "DisplayName": "James Ooi", "UPN": "james.ooi@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Michelle Goh", "UPN": "michelle.goh@fake.org", "Type": "Send on Behalf" }
+        ]},
+        { "DisplayName": "Payroll", "PrimarySmtp": "payroll@fake.org", "Alias": "payroll", "HiddenFromGAL": true, "ItemCount": 5120, "TotalItemSize": "1.1 GB (1181116006 bytes)", "LastLogonTime": "2026-07-14 16:30", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Nadia Rahman", "UPN": "nadia.rahman@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Kevin Teo", "UPN": "kevin.teo@fake.org", "Type": "Send As" }
+        ]},
+        { "DisplayName": "Marketing Team", "PrimarySmtp": "marketing@fake.org", "Alias": "marketing", "HiddenFromGAL": false, "ItemCount": 6754, "TotalItemSize": "1.9 GB (2040109465 bytes)", "LastLogonTime": "2026-07-16 11:22", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Farah Aziz", "UPN": "farah.aziz@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Ryan Lim", "UPN": "ryan.lim@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Grace Koh", "UPN": "grace.koh@fake.org", "Type": "Send As" }
+        ]},
+        { "DisplayName": "Sales Enquiries", "PrimarySmtp": "sales@fake.org", "Alias": "sales", "HiddenFromGAL": false, "ItemCount": 9887, "TotalItemSize": "2.7 GB (2899102983 bytes)", "LastLogonTime": "2026-07-17 07:58", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Ryan Lim", "UPN": "ryan.lim@fake.org", "Type": "Send As" },
+            { "DisplayName": "Daniel Yap", "UPN": "daniel.yap@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Lisa Tan", "UPN": "lisa.tan@fake.org", "Type": "Send As" }
+        ]},
+        { "DisplayName": "Facilities", "PrimarySmtp": "facilities@fake.org", "Alias": "facilities", "HiddenFromGAL": false, "ItemCount": 1543, "TotalItemSize": "312.5 MB (327680000 bytes)", "LastLogonTime": "2026-07-10 13:12", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Omar Hassan", "UPN": "omar.hassan@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Alex Tan", "UPN": "alex.tan@fake.org", "Type": "Send on Behalf" }
+        ]},
+        { "DisplayName": "Legal Compliance", "PrimarySmtp": "legal.compliance@fake.org", "Alias": "legalcompliance", "HiddenFromGAL": true, "ItemCount": 4321, "TotalItemSize": "980.2 MB (1027899494 bytes)", "LastLogonTime": "2026-07-13 09:40", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Sarah Wong", "UPN": "sarah.wong@fake.org", "Type": "Send As" },
+            { "DisplayName": "David Chen", "UPN": "david.chen@fake.org", "Type": "Full Access" }
+        ]},
+        { "DisplayName": "Customer Support", "PrimarySmtp": "support@fake.org", "Alias": "support", "HiddenFromGAL": false, "ItemCount": 15762, "TotalItemSize": "4.2 GB (4509715660 bytes)", "LastLogonTime": "2026-07-17 10:05", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Priya Nair", "UPN": "priya.nair@fake.org", "Type": "Send As" },
+            { "DisplayName": "Marcus Lee", "UPN": "marcus.lee@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Michelle Goh", "UPN": "michelle.goh@fake.org", "Type": "Full Access" }
+        ]},
+        { "DisplayName": "Procurement", "PrimarySmtp": "procurement@fake.org", "Alias": "procurement", "HiddenFromGAL": false, "ItemCount": 2987, "TotalItemSize": "645.8 MB (677283020 bytes)", "LastLogonTime": "2026-07-12 15:47", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "James Ooi", "UPN": "james.ooi@fake.org", "Type": "Send As" },
+            { "DisplayName": "Kevin Teo", "UPN": "kevin.teo@fake.org", "Type": "Full Access" }
+        ]},
+        { "DisplayName": "Executive Office", "PrimarySmtp": "exec.office@fake.org", "Alias": "execoffice", "HiddenFromGAL": true, "ItemCount": 7654, "TotalItemSize": "2.3 GB (2470061977 bytes)", "LastLogonTime": "2026-07-16 17:29", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Grace Koh", "UPN": "grace.koh@fake.org", "Type": "Full Access" },
+            { "DisplayName": "Daniel Yap", "UPN": "daniel.yap@fake.org", "Type": "Send on Behalf" }
+        ]},
+        { "DisplayName": "Recruitment", "PrimarySmtp": "recruitment@fake.org", "Alias": "recruitment", "HiddenFromGAL": false, "ItemCount": 3876, "TotalItemSize": "890.1 MB (933494374 bytes)", "LastLogonTime": "2026-07-11 12:03", "NeverLoggedOn": false, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Farah Aziz", "UPN": "farah.aziz@fake.org", "Type": "Send As" },
+            { "DisplayName": "Lisa Tan", "UPN": "lisa.tan@fake.org", "Type": "Full Access" }
+        ]},
+        { "DisplayName": "Security Operations", "PrimarySmtp": "secops@fake.org", "Alias": "secops", "HiddenFromGAL": false, "ItemCount": 6210, "TotalItemSize": "1.6 GB (1717986918 bytes)", "LastLogonTime": "2026-07-15 08:22", "NeverLoggedOn": false, "LookupFailed": true, "Permissions": [
+            { "DisplayName": "Omar Hassan", "UPN": "omar.hassan@fake.org", "Type": "Full Access" }
+        ]},
+        { "DisplayName": "Training & Development", "PrimarySmtp": "training@fake.org", "Alias": "training", "HiddenFromGAL": false, "ItemCount": 950, "TotalItemSize": "198.3 MB (207958834 bytes)", "LastLogonTime": "Never", "NeverLoggedOn": true, "LookupFailed": false, "Permissions": [
+            { "DisplayName": "Nadia Rahman", "UPN": "nadia.rahman@fake.org", "Type": "Send As" }
+        ]},
+        { "DisplayName": "Archive Mailbox (Unused)", "PrimarySmtp": "archive@fake.org", "Alias": "archive", "HiddenFromGAL": true, "ItemCount": 0, "TotalItemSize": "0 B (0 bytes)", "LastLogonTime": "Never", "NeverLoggedOn": true, "LookupFailed": false, "Permissions": [] }
+    ];
+    const PERM_TYPES = ['Full Access', 'Send As', 'Send on Behalf'];
+    const PERM_CLASS = { 'Full Access': 'badge-full', 'Send As': 'badge-send', 'Send on Behalf': 'badge-onbehalf' };
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function switchTab(id, btn) {
+        document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.getElementById('tab-' + id).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    function renderPermGrid(items, formatFn) {
+        const buckets = { 'Full Access': [], 'Send As': [], 'Send on Behalf': [] };
+        (items || []).forEach(function (it) {
+            if (buckets[it.Type]) buckets[it.Type].push(it);
+        });
+        let html = '<div class="perm-grid">';
+        PERM_TYPES.forEach(function (type) {
+            const list = buckets[type];
+            html += '<div class="perm-col">';
+            html += '<h4 class="' + PERM_CLASS[type] + '">' + escapeHtml(type) + ' (' + list.length + ')</h4>';
+            if (list.length === 0) {
+                html += '<div class="empty-note">None</div>';
+            } else {
+                html += '<ul>' + list.map(function (it) { return '<li>' + formatFn(it) + '</li>'; }).join('') + '</ul>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function buildDetailHtml(mbx) {
+        let html = '';
+        if (mbx.LookupFailed) {
+            html += '<div class="lookup-warning">&#9888; Permission lookup failed for this mailbox when the report ran - the list below may be incomplete. Re-run the script or check this mailbox manually in Exchange Online.</div>';
+        }
+        if (!mbx.Permissions || mbx.Permissions.length === 0) {
+            html += '<div class="no-perms">No delegates assigned to this mailbox.</div>';
+            return html;
+        }
+        html += renderPermGrid(mbx.Permissions, function (p) {
+            return '<div class="perm-name">' + escapeHtml(p.DisplayName) + '</div><div class="perm-sub">' + escapeHtml(p.UPN) + '</div>';
+        });
+        return html;
+    }
+
+    function render(data) {
+        const tbody = document.getElementById('mailboxTableBody');
+        tbody.innerHTML = '';
+
+        data.forEach(function (mbx) {
+            const mainRow = document.createElement('tr');
+            mainRow.className = 'mailbox-row';
+            mainRow.innerHTML =
+                '<td class="chevron-cell"><span class="chevron">&#9656;</span></td>' +
+                '<td>' + escapeHtml(mbx.DisplayName) + '</td>' +
+                '<td>' + escapeHtml(mbx.PrimarySmtp) + '</td>' +
+                '<td>' + escapeHtml(mbx.ItemCount) + '</td>' +
+                '<td>' + escapeHtml(mbx.TotalItemSize) + '</td>' +
+                '<td>' + escapeHtml(mbx.LastLogonTime) + '</td>' +
+                '<td>' + (mbx.HiddenFromGAL ? '<span class="badge-hidden">Hidden</span>' : '<span class="badge-visible">Visible</span>') + '</td>' +
+                '<td>' + mbx.Permissions.length + (mbx.LookupFailed ? ' <span class="badge-warning" title="Permission lookup failed">&#9888;</span>' : '') + '</td>';
+
+            const detailRow = document.createElement('tr');
+            detailRow.className = 'detail-row hidden';
+            const detailCell = document.createElement('td');
+            detailCell.colSpan = 8;
+            detailCell.innerHTML = buildDetailHtml(mbx);
+            detailRow.appendChild(detailCell);
+
+            mainRow.addEventListener('click', function () {
+                detailRow.classList.toggle('hidden');
+                mainRow.classList.toggle('expanded');
+            });
+
+            tbody.appendChild(mainRow);
+            tbody.appendChild(detailRow);
+        });
+
+        document.getElementById('resultCount').textContent =
+            data.length + ' of ' + mailboxData.length + ' mailboxes shown';
+    }
+
+    function applyFilters() {
+        const search = document.getElementById('searchInput').value.trim().toLowerCase();
+        const hiddenFilter = document.getElementById('hiddenFilter').value;
+        const neverLoggedOn = document.getElementById('neverLoggedOnFilter').checked;
+        const noPerms = document.getElementById('noPermsFilter').checked;
+
+        const filtered = mailboxData.filter(function (mbx) {
+            if (search) {
+                const inMailbox =
+                    (mbx.DisplayName || '').toLowerCase().includes(search) ||
+                    (mbx.PrimarySmtp || '').toLowerCase().includes(search) ||
+                    (mbx.Alias || '').toLowerCase().includes(search);
+                const inDelegate = mbx.Permissions.some(function (p) {
+                    return (p.DisplayName || '').toLowerCase().includes(search) ||
+                           (p.UPN || '').toLowerCase().includes(search);
+                });
+                if (!inMailbox && !inDelegate) return false;
+            }
+            if (hiddenFilter === 'hidden' && !mbx.HiddenFromGAL) return false;
+            if (hiddenFilter === 'visible' && mbx.HiddenFromGAL) return false;
+            if (neverLoggedOn && !mbx.NeverLoggedOn) return false;
+            if (noPerms && mbx.Permissions.length > 0) return false;
+            return true;
+        });
+
+        render(filtered);
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('hiddenFilter').addEventListener('change', applyFilters);
+    document.getElementById('neverLoggedOnFilter').addEventListener('change', applyFilters);
+    document.getElementById('noPermsFilter').addEventListener('change', applyFilters);
+
+    document.getElementById('resetBtn').addEventListener('click', function () {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('hiddenFilter').value = 'all';
+        document.getElementById('neverLoggedOnFilter').checked = false;
+        document.getElementById('noPermsFilter').checked = false;
+        applyFilters();
+    });
+
+    function buildUserData(mailboxes) {
+        const map = new Map();
+        mailboxes.forEach(function (mbx) {
+            (mbx.Permissions || []).forEach(function (p) {
+                const key = (p.UPN || p.DisplayName || '').toLowerCase();
+                if (!key) return;
+                if (!map.has(key)) {
+                    map.set(key, { DisplayName: p.DisplayName, UPN: p.UPN, Mailboxes: [] });
+                }
+                map.get(key).Mailboxes.push({
+                    MailboxDisplayName: mbx.DisplayName,
+                    MailboxPrimarySmtp: mbx.PrimarySmtp,
+                    Type: p.Type
+                });
+            });
+        });
+
+        const users = Array.from(map.values());
+        users.forEach(function (u) {
+            u.FullAccessCount = u.Mailboxes.filter(function (m) { return m.Type === 'Full Access'; }).length;
+            u.SendAsCount = u.Mailboxes.filter(function (m) { return m.Type === 'Send As'; }).length;
+            u.SendOnBehalfCount = u.Mailboxes.filter(function (m) { return m.Type === 'Send on Behalf'; }).length;
+            u.TotalCount = u.Mailboxes.length;
+        });
+        users.sort(function (a, b) { return b.TotalCount - a.TotalCount; });
+        return users;
+    }
+
+    const userData = buildUserData(mailboxData);
+
+    function buildUserDetailHtml(user) {
+        return renderPermGrid(user.Mailboxes, function (m) {
+            return '<div class="perm-name">' + escapeHtml(m.MailboxDisplayName) + '</div><div class="perm-sub">' + escapeHtml(m.MailboxPrimarySmtp) + '</div>';
+        });
+    }
+
+    function renderUsers(data) {
+        const tbody = document.getElementById('userTableBody');
+        tbody.innerHTML = '';
+
+        data.forEach(function (u) {
+            const mainRow = document.createElement('tr');
+            mainRow.className = 'mailbox-row';
+            mainRow.innerHTML =
+                '<td class="chevron-cell"><span class="chevron">&#9656;</span></td>' +
+                '<td>' + escapeHtml(u.DisplayName) + '</td>' +
+                '<td>' + escapeHtml(u.UPN) + '</td>' +
+                '<td>' + u.FullAccessCount + '</td>' +
+                '<td>' + u.SendAsCount + '</td>' +
+                '<td>' + u.SendOnBehalfCount + '</td>' +
+                '<td><strong>' + u.TotalCount + '</strong></td>';
+
+            const detailRow = document.createElement('tr');
+            detailRow.className = 'detail-row hidden';
+            const detailCell = document.createElement('td');
+            detailCell.colSpan = 7;
+            detailCell.innerHTML = buildUserDetailHtml(u);
+            detailRow.appendChild(detailCell);
+
+            mainRow.addEventListener('click', function () {
+                detailRow.classList.toggle('hidden');
+                mainRow.classList.toggle('expanded');
+            });
+
+            tbody.appendChild(mainRow);
+            tbody.appendChild(detailRow);
+        });
+
+        document.getElementById('userResultCount').textContent =
+            data.length + ' of ' + userData.length + ' users shown';
+    }
+
+    function applyUserFilters() {
+        const search = document.getElementById('userSearchInput').value.trim().toLowerCase();
+        const typeChecks = Array.from(document.querySelectorAll('.userPermTypeFilter:checked')).map(function (cb) { return cb.value; });
+
+        const filtered = userData.filter(function (u) {
+            if (search) {
+                const match = (u.DisplayName || '').toLowerCase().includes(search) || (u.UPN || '').toLowerCase().includes(search);
+                if (!match) return false;
+            }
+            if (typeChecks.length > 0) {
+                const hasType = u.Mailboxes.some(function (m) { return typeChecks.includes(m.Type); });
+                if (!hasType) return false;
+            }
+            return true;
+        });
+
+        renderUsers(filtered);
+    }
+
+    document.getElementById('userSearchInput').addEventListener('input', applyUserFilters);
+    document.querySelectorAll('.userPermTypeFilter').forEach(function (cb) { cb.addEventListener('change', applyUserFilters); });
+
+    document.getElementById('userResetBtn').addEventListener('click', function () {
+        document.getElementById('userSearchInput').value = '';
+        document.querySelectorAll('.userPermTypeFilter').forEach(function (cb) { cb.checked = false; });
+        applyUserFilters();
+    });
+
+    render(mailboxData);
+    renderUsers(userData);
+</script>
+
+</body>
+</html>
