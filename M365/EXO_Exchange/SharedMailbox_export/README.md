@@ -1,8 +1,13 @@
 # Get-SharedMailboxReport
 
-A single PowerShell script that connects to Exchange Online, pulls **Full Access** and **Send As** delegates for every shared mailbox, and generates a self-contained, interactive HTML report — no external dependencies, works fully offline once generated.
+A single PowerShell script that connects to Exchange Online, pulls **Full Access**, **Send As**, and **Send on Behalf** delegates for every shared mailbox, and generates a self-contained, interactive HTML report — no external dependencies, works fully offline once generated.
 
-Click a mailbox row to expand its delegates. Filter by GAL visibility, never-logged-on mailboxes, or mailboxes with no delegates. Search matches mailbox name/email/alias or a delegate's display name/UPN.
+The report has two tabs:
+
+- **Shared Mailboxes** — one row per mailbox. Click a row to expand a three-column grid of its delegates (Full Access / Send As / Send on Behalf). Filter by GAL visibility, never-logged-on mailboxes, or mailboxes with no delegates. Search matches mailbox name/email/alias or a delegate's display name/UPN.
+- **Users** — the same data pivoted the other way: one row per delegate, showing how many mailboxes they have each permission type on, sorted by total access descending (most-privileged users first — handy for access reviews). Search matches the person's name/UPN; checkboxes filter to people who have at least one of the checked permission types. Expand a row to see which mailboxes.
+
+The Users tab is built entirely in the browser from the same data as the Shared Mailboxes tab — there's no second query against Exchange, it's just a client-side pivot.
 
 ## Requirements
 
@@ -34,13 +39,13 @@ You'll be prompted to sign in to Exchange Online if you don't already have an ac
 
 ## Branding
 
-The report title includes a company name placeholder. To personalize it, open the script and edit **line 270**:
+The report title includes a hardcoded company name. To personalize it, open the script and edit **line 318**:
 
 ```html
-<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; Your Company &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
+<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; First Digital &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
 ```
 
-Replace `Your Company` with your own organization's name.
+Replace the company name with your own organization's, or a generic placeholder like `Your Company`. Note the line number will shift if you edit other parts of the script — search for the subtitle text if 318 no longer lines up.
 
 ## A note on the output
 
