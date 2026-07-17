@@ -315,7 +315,7 @@ $html = @"
 <body>
 
 <h1>Shared Mailbox Report</h1>
-<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; First Digital &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
+<div class="subtitle">Generated $generatedOn &nbsp;|&nbsp; Company &nbsp;|&nbsp; $mailboxCount shared mailboxes</div>
 
 <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('mailboxes', this)">Shared Mailboxes</button>
